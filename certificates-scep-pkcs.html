@@ -1,0 +1,762 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Microsoft Intune Deep Dive — Certificates: SCEP & PKCS">
+<title>Certificates: SCEP & PKCS — Intune Deep Dive</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;600&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+
+/* ═══════════════════════════════════════════
+   INTUNE DEEP DIVE — SHARED DESIGN SYSTEM v3
+   ═══════════════════════════════════════════ */
+
+:root {
+  --bg: #05080f;
+  --bg2: #080d18;
+  --surface: #0c1220;
+  --surface2: #101828;
+  --border: #1a2840;
+  --border2: #243550;
+  --text: #c8d8ec;
+  --text2: #7a96b8;
+  --text3: #4a6080;
+  --white: #f0f6ff;
+  --radius: 12px;
+  --radius-sm: 7px;
+  --transition: 0.22s cubic-bezier(0.4,0,0.2,1);
+  --shadow: 0 4px 24px rgba(0,0,0,0.4);
+  --shadow-lg: 0 8px 48px rgba(0,0,0,0.6);
+}
+
+/* ── Reset ── */
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+html { scroll-behavior: smooth; font-size: 16px; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'IBM Plex Mono', monospace;
+  overflow-x: hidden;
+  min-height: 100vh;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+img { max-width:100%; display:block; }
+a { color: inherit; }
+
+/* ── Top Nav Bar ── */
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: rgba(5,8,15,0.92);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--border);
+  padding: 0 24px;
+  height: 52px;
+  display: flex;
+  align-items: center;
+  gap: 0;
+}
+.topbar-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+  flex-shrink: 0;
+  margin-right: 20px;
+}
+.topbar-brand-icon {
+  width: 28px; height: 28px;
+  background: var(--accent);
+  border-radius: 6px;
+  display: flex; align-items:center; justify-content:center;
+  font-size: 14px;
+  flex-shrink: 0;
+  box-shadow: 0 0 12px var(--accent-glow);
+}
+.topbar-brand-text {
+  font-family: 'Syne', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--white);
+  white-space: nowrap;
+}
+.topbar-divider {
+  width: 1px; height: 20px;
+  background: var(--border2);
+  margin: 0 16px;
+  flex-shrink: 0;
+}
+.topbar-links {
+  display: flex;
+  gap: 2px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  flex: 1;
+}
+.topbar-links::-webkit-scrollbar { display: none; }
+.topbar-link {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 11px;
+  border-radius: 6px;
+  font-size: 11px;
+  color: var(--text3);
+  text-decoration: none;
+  white-space: nowrap;
+  transition: all var(--transition);
+  border: 1px solid transparent;
+  flex-shrink: 0;
+}
+.topbar-link:hover {
+  color: var(--accent);
+  background: rgba(255,255,255,0.04);
+  border-color: var(--border2);
+}
+.topbar-link.active {
+  color: var(--accent);
+  background: rgba(255,255,255,0.05);
+  border-color: var(--accent-dim);
+}
+.topbar-link .link-emoji { font-size: 12px; }
+
+/* ── Page Header ── */
+.page-header {
+  position: relative;
+  padding: 64px 48px 48px;
+  border-bottom: 1px solid var(--border);
+  overflow: hidden;
+}
+.page-header::before {
+  content: '';
+  position: absolute;
+  top: -120px; right: -80px;
+  width: 600px; height: 600px;
+  background: radial-gradient(circle, var(--accent-glow) 0%, transparent 65%);
+  pointer-events: none;
+  opacity: 0.5;
+}
+.page-header::after {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--accent-dim), transparent);
+}
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 20px;
+  font-size: 11px;
+  color: var(--text3);
+}
+.breadcrumb a { color: var(--accent); text-decoration: none; }
+.breadcrumb a:hover { text-decoration: underline; }
+.breadcrumb-sep { color: var(--text3); }
+.page-eyebrow {
+  font-size: 11px;
+  letter-spacing: 0.35em;
+  color: var(--accent);
+  text-transform: uppercase;
+  margin-bottom: 14px;
+  opacity: 0.85;
+}
+.page-title {
+  font-family: 'Syne', sans-serif;
+  font-size: clamp(28px, 4.5vw, 58px);
+  font-weight: 800;
+  color: var(--white);
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  margin-bottom: 16px;
+}
+.page-title span { color: var(--accent); }
+.page-subtitle {
+  font-size: 13px;
+  color: var(--text2);
+  max-width: 620px;
+  line-height: 1.75;
+}
+.stat-strip {
+  display: flex;
+  gap: 40px;
+  margin-top: 36px;
+  flex-wrap: wrap;
+}
+.stat-item { display: flex; flex-direction: column; gap: 4px; }
+.stat-value {
+  font-family: 'Syne', sans-serif;
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--accent2);
+  letter-spacing: -0.01em;
+}
+.stat-label { font-size: 10px; color: var(--text3); letter-spacing: 0.1em; text-transform: uppercase; }
+
+/* ── Tab Nav ── */
+.tab-nav {
+  display: flex;
+  gap: 4px;
+  padding: 14px 48px;
+  border-bottom: 1px solid var(--border);
+  overflow-x: auto;
+  scrollbar-width: none;
+  background: var(--bg2);
+}
+.tab-nav::-webkit-scrollbar { display: none; }
+.tab-btn {
+  padding: 8px 18px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--text3);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11.5px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all var(--transition);
+  letter-spacing: 0.03em;
+}
+.tab-btn:hover { color: var(--text); border-color: var(--border2); background: rgba(255,255,255,0.03); }
+.tab-btn.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #000;
+  font-weight: 700;
+  box-shadow: 0 0 16px var(--accent-glow);
+}
+
+/* ── Main Content ── */
+main {
+  padding: 48px;
+  max-width: 1320px;
+  margin: 0 auto;
+}
+.tab-section { display: none; animation: fadeIn 0.3s ease; }
+.tab-section.active { display: block; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+/* ── Section Labels ── */
+.section-label {
+  font-size: 10px;
+  letter-spacing: 0.3em;
+  color: var(--accent);
+  text-transform: uppercase;
+  margin-bottom: 6px;
+  opacity: 0.8;
+}
+.section-heading {
+  font-family: 'Syne', sans-serif;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--white);
+  margin-bottom: 8px;
+}
+.section-body {
+  font-size: 12px;
+  color: var(--text2);
+  margin-bottom: 32px;
+  line-height: 1.8;
+  max-width: 780px;
+}
+
+/* ── Card Grid ── */
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+  margin-bottom: 40px;
+}
+.card-grid.cols-2 { grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); }
+.card-grid.cols-3 { grid-template-columns: repeat(3, 1fr); }
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 22px;
+  transition: all var(--transition);
+  position: relative;
+  overflow: hidden;
+}
+.card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--accent), transparent);
+  opacity: 0;
+  transition: opacity var(--transition);
+}
+.card:hover {
+  border-color: var(--accent-dim);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+}
+.card:hover::before { opacity: 1; }
+.card-emoji { font-size: 24px; margin-bottom: 12px; }
+.card-title {
+  font-family: 'Syne', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--white);
+  margin-bottom: 8px;
+}
+.card-text { font-size: 11px; color: var(--text2); line-height: 1.8; }
+
+/* ── Info Box ── */
+.info-box {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 24px 28px;
+  margin-bottom: 20px;
+}
+.info-box-title {
+  font-family: 'Syne', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--accent);
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.info-box-body { font-size: 12px; color: var(--text); line-height: 1.9; }
+
+/* ── Flow Steps ── */
+.flow-steps { display: flex; flex-direction: column; gap: 0; }
+.flow-step {
+  display: flex;
+  gap: 16px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--border);
+}
+.flow-step:last-child { border-bottom: none; }
+.flow-step-num {
+  width: 30px; height: 30px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--accent-dim);
+  display: flex; align-items:center; justify-content:center;
+  font-size: 11px; font-weight: 700;
+  color: var(--accent);
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+.flow-step-content { flex: 1; }
+.flow-step-title { font-size: 12px; font-weight: 700; color: var(--white); margin-bottom: 4px; }
+.flow-step-text { font-size: 11px; color: var(--text2); line-height: 1.7; }
+
+/* ── Code Block ── */
+.code-wrap {
+  background: #020508;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  margin-bottom: 20px;
+}
+.code-header {
+  background: var(--surface2);
+  padding: 9px 16px;
+  font-size: 10px;
+  color: var(--text3);
+  letter-spacing: 0.1em;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.code-dots { display:flex; gap:5px; }
+.code-dot { width:8px; height:8px; border-radius:50%; }
+.code-dot.red { background:#ff5f57; }
+.code-dot.yellow { background:#febc2e; }
+.code-dot.green { background:#28c840; }
+.code-block {
+  padding: 20px;
+  font-size: 11px;
+  line-height: 1.85;
+  overflow-x: auto;
+  color: #8ba8c8;
+}
+.c-comment { color: #3a5070; }
+.c-key { color: var(--accent); }
+.c-val { color: var(--accent2); }
+.c-str { color: #d4a862; }
+.c-kw { color: var(--accent3, #00ffc8); }
+
+/* ── Table ── */
+.data-table { width:100%; border-collapse:collapse; margin-bottom:32px; font-size:11.5px; }
+.data-table th {
+  padding: 11px 14px;
+  text-align: left;
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--accent);
+  border-bottom: 2px solid var(--border2);
+  background: var(--surface2);
+  white-space: nowrap;
+}
+.data-table td {
+  padding: 11px 14px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+  vertical-align: top;
+  line-height: 1.55;
+}
+.data-table tr:last-child td { border-bottom: none; }
+.data-table tbody tr { transition: background var(--transition); }
+.data-table tbody tr:hover td { background: rgba(255,255,255,0.02); }
+.data-table td:first-child { color: var(--accent2); font-weight: 600; }
+
+/* ── Pill Tags ── */
+.pill {
+  display: inline-block;
+  padding: 2px 9px;
+  border-radius: 20px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  border: 1px solid;
+}
+.pill-green { color: #00ff88; border-color: rgba(0,255,136,0.35); background: rgba(0,255,136,0.07); }
+.pill-red   { color: #ff5566; border-color: rgba(255,85,102,0.35); background: rgba(255,85,102,0.07); }
+.pill-yellow{ color: #f0c040; border-color: rgba(240,192,64,0.35);  background: rgba(240,192,64,0.07); }
+.pill-blue  { color: var(--accent); border-color: var(--accent-dim); background: rgba(0,168,255,0.07); }
+
+/* ── Cross-Reference Link ── */
+.xlink {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border: 1px solid var(--accent-dim);
+  border-radius: 4px;
+  font-size: 10px;
+  color: var(--accent);
+  text-decoration: none;
+  transition: all var(--transition);
+  margin-top: 8px;
+}
+.xlink:hover { background: var(--accent); color: #000; border-color: var(--accent); }
+.xlink::before { content: '→'; }
+
+/* ── Compare Grid ── */
+.compare-cols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 32px;
+}
+.compare-col {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.compare-col-head {
+  padding: 18px 22px;
+  border-bottom: 1px solid var(--border);
+}
+.compare-col-eyebrow { font-size: 10px; letter-spacing: 0.25em; text-transform: uppercase; margin-bottom: 5px; }
+.compare-col-title { font-family: 'Syne',sans-serif; font-size: 17px; font-weight: 700; color: var(--white); }
+.compare-col-sub { font-size: 11px; color: var(--text2); margin-top: 3px; }
+.compare-col-body { padding: 18px 22px; }
+.compare-row { display:flex; align-items:flex-start; gap:10px; padding:9px 0; border-bottom:1px solid var(--border); }
+.compare-row:last-child { border-bottom:none; }
+.compare-row-label { font-size:10px; color:var(--text3); text-transform:uppercase; letter-spacing:0.1em; margin-bottom:2px; }
+.compare-row-text { font-size:11px; color:var(--text); line-height:1.6; }
+
+/* ── Hub Cards (index page) ── */
+.hub-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px,1fr));
+  gap: 14px;
+}
+.hub-card {
+  display: block;
+  text-decoration: none;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 22px;
+  transition: all var(--transition);
+  position: relative;
+  overflow: hidden;
+}
+.hub-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, var(--card-accent-glow) 0%, transparent 60%);
+  opacity: 0;
+  transition: opacity var(--transition);
+}
+.hub-card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow);
+  border-color: var(--card-accent);
+}
+.hub-card:hover::after { opacity: 1; }
+.hub-card.active-page { border-color: var(--card-accent); box-shadow: 0 0 0 1px var(--card-accent); }
+.hub-icon { font-size: 28px; margin-bottom: 12px; }
+.hub-title { font-family:'Syne',sans-serif; font-size:14px; font-weight:700; margin-bottom:6px; }
+.hub-desc { font-size:10px; color:var(--text2); line-height:1.7; }
+.hub-cta { margin-top:12px; font-size:10px; letter-spacing:0.08em; text-transform:uppercase; font-weight:700; }
+
+/* ── Footer ── */
+.page-footer {
+  margin-top: 80px;
+  padding: 32px 48px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+.footer-prev, .footer-next {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+  padding: 12px 20px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 12px;
+  color: var(--text2);
+  transition: all var(--transition);
+  min-width: 160px;
+}
+.footer-prev:hover, .footer-next:hover { border-color: var(--accent); color: var(--accent); }
+.footer-prev { flex-direction: row; }
+.footer-next { flex-direction: row-reverse; text-align:right; }
+.footer-nav-label { font-size:10px; text-transform:uppercase; letter-spacing:0.1em; color:var(--text3); display:block; margin-bottom:2px; }
+.footer-nav-title { font-family:'Syne',sans-serif; font-size:13px; font-weight:700; color:var(--white); }
+.footer-arrow { font-size:18px; color:var(--accent); flex-shrink:0; }
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 10px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text3); }
+
+/* ══════════════════════════════
+   RESPONSIVE
+   ══════════════════════════════ */
+@media (max-width: 900px) {
+  .card-grid.cols-3 { grid-template-columns: repeat(2,1fr); }
+  .compare-cols { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 640px) {
+  .page-header { padding: 40px 20px 32px; }
+  .tab-nav { padding: 12px 16px; }
+  main { padding: 28px 16px; }
+  .topbar { padding: 0 16px; }
+  .topbar-brand-text { display: none; }
+  .page-footer { padding: 24px 16px; flex-direction: column; }
+  .footer-prev, .footer-next { min-width: unset; width:100%; }
+  .card-grid, .card-grid.cols-2, .card-grid.cols-3 { grid-template-columns: 1fr; }
+  .hub-grid { grid-template-columns: 1fr 1fr; }
+  .stat-strip { gap: 24px; }
+}
+
+@media (max-width: 380px) {
+  .hub-grid { grid-template-columns: 1fr; }
+}
+
+:root {
+  --accent: #00d4aa;
+  --accent2: #77eedd;
+  --accent3: #a855f7;
+  --accent-glow: rgba(0,212,170,0.05);
+  --accent-dim: rgba(0,212,170,0.3);
+}
+
+</style>
+</head>
+<body>
+
+<nav class="topbar">
+  <a href="index.html" class="topbar-brand" title="Home">
+    <div class="topbar-brand-icon">🏗️</div>
+    <span class="topbar-brand-text">Intune Deep Dive</span>
+  </a>
+  <div class="topbar-divider"></div>
+  <div class="topbar-links">
+    <a href="index.html" class="topbar-link"><span class="link-emoji">🏠</span><span class="link-text">Home</span></a>
+<a href="mdm-vs-byod.html" class="topbar-link"><span class="link-emoji">⚖️</span><span class="link-text">MDM vs BYOD</span></a>
+<a href="endpoint-security.html" class="topbar-link"><span class="link-emoji">🛡️</span><span class="link-text">Security</span></a>
+<a href="azure-ad.html" class="topbar-link"><span class="link-emoji">🔐</span><span class="link-text">Azure AD & CA</span></a>
+<a href="policy-management.html" class="topbar-link"><span class="link-emoji">📋</span><span class="link-text">Policies</span></a>
+<a href="windows-autopilot.html" class="topbar-link"><span class="link-emoji">🚀</span><span class="link-text">Autopilot</span></a>
+<a href="certificates-scep-pkcs.html" class="topbar-link active"><span class="link-emoji">🔑</span><span class="link-text">Certificates</span></a>
+<a href="microsoft-tunnel-vpn.html" class="topbar-link"><span class="link-emoji">🌐</span><span class="link-text">Tunnel & VPN</span></a>
+<a href="graph-api-automation.html" class="topbar-link"><span class="link-emoji">⚡</span><span class="link-text">Graph API</span></a>
+<a href="app-management.html" class="topbar-link"><span class="link-emoji">📦</span><span class="link-text">App Mgmt</span></a>
+
+  </div>
+</nav>
+
+<header class="page-header">
+  <div class="breadcrumb"><a href="index.html">Home</a><span class="breadcrumb-sep">/</span>Certificates</div>
+  <div class="page-eyebrow">// PKI & Certificate Management</div>
+  <h1 class="page-title">Certificates:<br><span>SCEP &amp; PKCS</span></h1>
+  <p class="page-subtitle">How Intune delivers client certificates — SCEP via NDES connector, PKCS via Certificate Connector, Cloud PKI, trusted root deployment, and certificate use cases for Wi-Fi, VPN, and email authentication.</p>
+  <div class="stat-strip">
+    <div class="stat-item"><span class="stat-value">SCEP</span><span class="stat-label">Device-Generated Keys</span></div>
+    <div class="stat-item"><span class="stat-value">PKCS</span><span class="stat-label">CA-Generated Keys</span></div>
+    <div class="stat-item"><span class="stat-value">mTLS</span><span class="stat-label">Mutual Auth</span></div>
+    <div class="stat-item"><span class="stat-value">TPM</span><span class="stat-label">Key Storage</span></div>
+  </div>
+</header>
+<nav class="tab-nav">
+  <button class="tab-btn" onclick="showTab('c-overview',this)">Overview</button>
+  <button class="tab-btn" onclick="showTab('c-scep',this)">SCEP Flow</button>
+  <button class="tab-btn" onclick="showTab('c-pkcs',this)">PKCS Flow</button>
+  <button class="tab-btn" onclick="showTab('c-usecases',this)">Use Cases</button>
+  <button class="tab-btn" onclick="showTab('c-lifecycle',this)">Lifecycle</button>
+</nav>
+<main>
+
+<div class="tab-section" id="c-overview">
+  <div class="section-label">Why Certificates?</div>
+  <div class="section-heading">Passwordless Device Authentication</div>
+  <p class="section-body">Certificates replace passwords for device and user authentication. A managed device proves its identity to Wi-Fi, VPN, and email using a certificate issued by your CA — with no user password prompt.</p>
+  <div class="compare-cols">
+    <div class="compare-col" style="border-top:3px solid #00d4aa;">
+      <div class="compare-col-head"><div class="compare-col-eyebrow" style="color:#00d4aa">SCEP</div><div class="compare-col-title">Simple Certificate Enrollment Protocol</div><div class="compare-col-sub">Device generates its own key pair — private key never leaves the device</div></div>
+      <div class="compare-col-body">
+        <div class="compare-row"><div><div class="compare-row-label">Key Generation</div><div class="compare-row-text">Private key generated on-device, never transmitted. TPM-bound on Windows — hardware-tied.</div></div></div>
+        <div class="compare-row"><div><div class="compare-row-label">Infrastructure</div><div class="compare-row-text">Requires NDES (Network Device Enrollment Service) on-premises + Intune Certificate Connector</div></div></div>
+        <div class="compare-row"><div><div class="compare-row-label">Security</div><div class="compare-row-text">Highest — private key never transmitted, TPM-protected, hardware-bound</div></div></div>
+        <div class="compare-row"><div><div class="compare-row-label">Best For</div><div class="compare-row-text">Wi-Fi auth, VPN auth, high-security device identity</div></div></div>
+        <div class="compare-row"><div><div class="compare-row-label">Platforms</div><div class="compare-row-text">Windows, iOS, Android, macOS, Linux</div></div></div>
+      </div>
+    </div>
+    <div class="compare-col" style="border-top:3px solid #a855f7;">
+      <div class="compare-col-head"><div class="compare-col-eyebrow" style="color:#a855f7">PKCS #12</div><div class="compare-col-title">Public Key Cryptography Standards</div><div class="compare-col-sub">CA generates key pair and exports PFX — delivered by Intune</div></div>
+      <div class="compare-col-body">
+        <div class="compare-row"><div><div class="compare-row-label">Key Generation</div><div class="compare-row-text">CA generates both public and private key. PFX container delivered to device encrypted with device's public key.</div></div></div>
+        <div class="compare-row"><div><div class="compare-row-label">Infrastructure</div><div class="compare-row-text">Intune Certificate Connector only — simpler than SCEP, no NDES required</div></div></div>
+        <div class="compare-row"><div><div class="compare-row-label">Security</div><div class="compare-row-text">Good — PFX encrypted in transit, but private key passes through Intune service</div></div></div>
+        <div class="compare-row"><div><div class="compare-row-label">Best For</div><div class="compare-row-text">S/MIME email signing/encryption, simpler deployments</div></div></div>
+        <div class="compare-row"><div><div class="compare-row-label">Platforms</div><div class="compare-row-text">Windows, iOS, Android, macOS</div></div></div>
+      </div>
+    </div>
+  </div>
+  <div class="card-grid">
+    <div class="card"><div class="card-emoji">🏛️</div><div class="card-title">Trusted Root Certificate Profile</div><div class="card-text">Before deploying SCEP or PKCS profiles, push the Trusted Root CA certificate to all devices. Intune delivers root cert via a "Trusted certificate" profile — prerequisite for SCEP/PKCS profiles.</div></div>
+    <div class="card"><div class="card-emoji">🔌</div><div class="card-title">Intune Certificate Connector</div><div class="card-text">Windows service on an on-prem server bridging Intune cloud to your CA. For SCEP: proxies requests to NDES. For PKCS: communicates with CA directly. Requires outbound HTTPS only — no inbound firewall rules.<br><a href="microsoft-tunnel-vpn.html" class="xlink">Tunnel connector comparison</a></div></div>
+    <div class="card"><div class="card-emoji">☁️</div><div class="card-title">Cloud PKI (Intune Suite)</div><div class="card-text">Microsoft's fully cloud-hosted CA — no on-premises infrastructure. Create root CA and issuing CA entirely in Intune. Issue SCEP and PKCS certificates without any connectors. Available with Intune Suite add-on licence.</div></div>
+  </div>
+</div>
+
+<div class="tab-section" id="c-scep">
+  <div class="section-label">SCEP Flow</div>
+  <div class="section-heading">Complete SCEP Certificate Request Flow</div>
+  <p class="section-body">From policy assignment to certificate installed on device — every step of the SCEP process.</p>
+  <div class="info-box">
+    <div class="info-box-title">🔐 SCEP Flow — Windows Device Example</div>
+    <div class="flow-steps">
+      <div class="flow-step"><div class="flow-step-num">1</div><div class="flow-step-content"><div class="flow-step-title">Policy Assignment</div><div class="flow-step-text">Admin creates SCEP profile: subject name, key size (2048-bit), key usage, EKU (Client Authentication), validity period, NDES URL. Assigned to device or user group.</div></div></div>
+      <div class="flow-step"><div class="flow-step-num">2</div><div class="flow-step-content"><div class="flow-step-title">Device Receives Profile</div><div class="flow-step-text">At next MDM check-in, device receives the SCEP certificate profile. Windows MDM client reads SCEP parameters and initiates key generation.</div></div></div>
+      <div class="flow-step"><div class="flow-step-num">3</div><div class="flow-step-content"><div class="flow-step-title">Key Pair Generated On-Device</div><div class="flow-step-text">Device generates RSA 2048-bit key pair. On Windows with TPM, private key generated inside TPM — it can never be exported. A Certificate Signing Request (CSR) is created with the public key.</div></div></div>
+      <div class="flow-step"><div class="flow-step-num">4</div><div class="flow-step-content"><div class="flow-step-title">Intune Issues Challenge Password</div><div class="flow-step-text">Device requests a SCEP challenge password from Intune. Intune verifies device identity (must be enrolled). Calls NDES connector to get a one-time challenge password. Returns it to device.</div></div></div>
+      <div class="flow-step"><div class="flow-step-num">5</div><div class="flow-step-content"><div class="flow-step-title">CSR + Challenge → NDES</div><div class="flow-step-text">Device submits CSR and challenge password directly to NDES URL over HTTPS. NDES validates the challenge, forwards certificate request to the internal CA (ADCS).</div></div></div>
+      <div class="flow-step"><div class="flow-step-num">6</div><div class="flow-step-content"><div class="flow-step-title">CA Issues Certificate</div><div class="flow-step-text">ADCS processes the request using the assigned certificate template. Signs certificate with CA's private key. Returns signed certificate to NDES → device.</div></div></div>
+      <div class="flow-step"><div class="flow-step-num">7</div><div class="flow-step-content"><div class="flow-step-title">Certificate Installed & Reported</div><div class="flow-step-text">Device installs certificate in the appropriate store (Computer or User). Intune notified of successful delivery. Certificate thumbprint and expiry recorded in Intune device record. Ready for Wi-Fi/VPN auth.<br><a href="windows-autopilot.html" class="xlink">Certificate delivery during Autopilot ESP</a></div></div></div>
+    </div>
+  </div>
+</div>
+
+<div class="tab-section" id="c-pkcs">
+  <div class="section-label">PKCS Flow</div>
+  <div class="section-heading">PKCS #12 Certificate Delivery</div>
+  <p class="section-body">How PFX certificates are generated by the CA and securely delivered to devices via the Intune Certificate Connector.</p>
+  <div class="flow-steps" style="margin-bottom:24px;">
+    <div class="flow-step"><div class="flow-step-num">1</div><div class="flow-step-content"><div class="flow-step-title">PKCS Profile Assigned</div><div class="flow-step-text">Admin creates PKCS profile: CA server, certificate template name, subject name format, target (user or device). Assigns to group.</div></div></div>
+    <div class="flow-step"><div class="flow-step-num">2</div><div class="flow-step-content"><div class="flow-step-title">Certificate Connector Polls Intune</div><div class="flow-step-text">The Intune Certificate Connector (on-prem) polls Intune every few minutes for new PKCS certificate requests. No inbound connections — connector initiates outbound HTTPS only.</div></div></div>
+    <div class="flow-step"><div class="flow-step-num">3</div><div class="flow-step-content"><div class="flow-step-title">Connector Requests Certificate from CA</div><div class="flow-step-text">Connector calls ADCS via DCOM/RPC to request a certificate using the specified template. CA generates both private key and certificate, exports as PFX encrypted container.</div></div></div>
+    <div class="flow-step"><div class="flow-step-num">4</div><div class="flow-step-content"><div class="flow-step-title">PFX Encrypted and Uploaded</div><div class="flow-step-text">Connector encrypts the PFX using the device's Entra ID public key (only the target device can decrypt). Uploads encrypted PFX blob to Intune. Private key never stored in Intune in plaintext.</div></div></div>
+    <div class="flow-step"><div class="flow-step-num">5</div><div class="flow-step-content"><div class="flow-step-title">Device Downloads and Installs</div><div class="flow-step-text">At next MDM check-in, device downloads the encrypted PFX from Intune. Decrypts using its own private key. Installs certificate in specified store. Reports back to Intune.</div></div></div>
+  </div>
+</div>
+
+<div class="tab-section" id="c-usecases">
+  <div class="section-label">Use Cases</div>
+  <div class="section-heading">Where Intune-Deployed Certificates Are Used</div>
+  <div class="card-grid">
+    <div class="card"><div class="card-emoji">📶</div><div class="card-title">802.1X Wi-Fi Authentication</div><div class="card-text">WPA2-Enterprise (EAP-TLS). Device presents SCEP certificate to RADIUS server (NPS) for authentication. No password needed. Only Intune-managed devices with a valid cert can join the network.<br><a href="policy-management.html" class="xlink">Wi-Fi profile in Settings Catalog</a></div></div>
+    <div class="card"><div class="card-emoji">🌐</div><div class="card-title">VPN Certificate Authentication</div><div class="card-text">VPN gateway (Cisco AnyConnect, Palo Alto GlobalProtect, Microsoft Tunnel) authenticates devices using SCEP certificates. Proves "this is a managed, trusted device." No VPN password prompts.<br><a href="microsoft-tunnel-vpn.html" class="xlink">Microsoft Tunnel &amp; VPN</a></div></div>
+    <div class="card"><div class="card-emoji">📧</div><div class="card-title">S/MIME Email Signing & Encryption</div><div class="card-text">PKCS certificates used for S/MIME in Outlook. Signing cert proves email authenticity. Encryption cert enables end-to-end encrypted email. Deployed silently via Intune — no user setup needed.</div></div>
+    <div class="card"><div class="card-emoji">🔐</div><div class="card-title">MDM Mutual TLS</div><div class="card-text">After initial enrollment, Windows devices use a client certificate for all MDM check-ins with Intune. Replaces initial token-based auth. TPM-bound on Windows — hardware-tied to that specific device.</div></div>
+    <div class="card"><div class="card-emoji">☁️</div><div class="card-title">Entra ID Certificate-Based Auth (CBA)</div><div class="card-text">Use Intune-issued client certs as a phishing-resistant MFA factor for Conditional Access — hardware-bound authentication without FIDO2 keys.<br><a href="azure-ad.html" class="xlink">CA policy for CBA</a></div></div>
+    <div class="card"><div class="card-emoji">🖨️</div><div class="card-title">Network Resource Access</div><div class="card-text">Printers, NAS devices, and internal web apps requiring certificate authentication. Devices with Intune-issued certs access these resources seamlessly — without users entering domain credentials.</div></div>
+  </div>
+</div>
+
+<div class="tab-section" id="c-lifecycle">
+  <div class="section-label">Lifecycle</div>
+  <div class="section-heading">Certificate Renewal & Revocation</div>
+  <table class="data-table">
+    <thead><tr><th>Event</th><th>Intune Action</th><th>CA Action</th></tr></thead>
+    <tbody>
+      <tr><td>Approaching expiry (20% threshold)</td><td>Intune auto-re-triggers SCEP/PKCS request. New cert delivered before old expires. User sees no interruption.</td><td>CA issues new certificate. Old remains valid until its own expiry.</td></tr>
+      <tr><td>Device unenrolled / wiped</td><td>Intune marks certificate for revocation. Sends revocation notification to Certificate Connector.</td><td>Connector revokes cert in ADCS. CRL updated. Certificate no longer valid.</td></tr>
+      <tr><td>User leaves organisation</td><td>Selective wipe removes certificate from device. User-targeted cert profiles are removed.</td><td>Certificate revoked. User loses Wi-Fi, VPN, email auth capability.</td></tr>
+      <tr><td>Device non-compliant</td><td>Can be configured to revoke certificates on non-compliance — blocking network access via cert auth.</td><td>Cert revoked. Device loses Wi-Fi/VPN access enforced by cert auth.</td></tr>
+      <tr><td>Certificate profile deleted</td><td>Certificate removed from device at next check-in. Intune notifies connector to revoke at CA.</td><td>Cert revoked. CRL distributed to all relying parties (RADIUS, VPN gateway, etc.)</td></tr>
+    </tbody>
+  </table>
+</div>
+
+</main>
+
+<footer class="page-footer">
+  <a href="windows-autopilot.html" class="footer-prev"><span class="footer-arrow">←</span><div><span class="footer-nav-label">Previous</span><span class="footer-nav-title">🚀 Autopilot</span></div></a>
+  <span style="font-size:11px;color:var(--text3);">Intune Deep Dive Series — 10 Modules</span>
+  <a href="microsoft-tunnel-vpn.html" class="footer-next"><span class="footer-arrow">→</span><div><span class="footer-nav-label">Next</span><span class="footer-nav-title">🌐 Tunnel & VPN</span></div></a>
+</footer>
+<script>
+// ── Tab switching with history ──
+function showTab(id, btn) {
+  document.querySelectorAll('.tab-section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  const el = document.getElementById(id);
+  if (el) el.classList.add('active');
+  if (btn) btn.classList.add('active');
+  // smooth scroll to tab content on mobile
+  if (window.innerWidth < 640) {
+    setTimeout(() => el && el.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+  }
+}
+
+// ── Topbar scroll shadow ──
+window.addEventListener('scroll', () => {
+  const tb = document.querySelector('.topbar');
+  if (tb) tb.style.boxShadow = scrollY > 10 ? '0 4px 24px rgba(0,0,0,0.5)' : '';
+}, { passive: true });
+
+// ── Activate first tab on load ──
+document.addEventListener('DOMContentLoaded', () => {
+  const firstBtn = document.querySelector('.tab-btn');
+  const firstSec = document.querySelector('.tab-section');
+  if (firstBtn && !document.querySelector('.tab-btn.active')) {
+    firstBtn.classList.add('active');
+  }
+  if (firstSec && !document.querySelector('.tab-section.active')) {
+    firstSec.classList.add('active');
+  }
+});
+</script>
+</body>
+</html>

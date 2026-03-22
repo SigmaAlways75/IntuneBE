@@ -1,0 +1,743 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Microsoft Intune Deep Dive — Windows Autopilot">
+<title>Windows Autopilot — Intune Deep Dive</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;600&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+
+/* ═══════════════════════════════════════════
+   INTUNE DEEP DIVE — SHARED DESIGN SYSTEM v3
+   ═══════════════════════════════════════════ */
+
+:root {
+  --bg: #05080f;
+  --bg2: #080d18;
+  --surface: #0c1220;
+  --surface2: #101828;
+  --border: #1a2840;
+  --border2: #243550;
+  --text: #c8d8ec;
+  --text2: #7a96b8;
+  --text3: #4a6080;
+  --white: #f0f6ff;
+  --radius: 12px;
+  --radius-sm: 7px;
+  --transition: 0.22s cubic-bezier(0.4,0,0.2,1);
+  --shadow: 0 4px 24px rgba(0,0,0,0.4);
+  --shadow-lg: 0 8px 48px rgba(0,0,0,0.6);
+}
+
+/* ── Reset ── */
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+html { scroll-behavior: smooth; font-size: 16px; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'IBM Plex Mono', monospace;
+  overflow-x: hidden;
+  min-height: 100vh;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+img { max-width:100%; display:block; }
+a { color: inherit; }
+
+/* ── Top Nav Bar ── */
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: rgba(5,8,15,0.92);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--border);
+  padding: 0 24px;
+  height: 52px;
+  display: flex;
+  align-items: center;
+  gap: 0;
+}
+.topbar-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+  flex-shrink: 0;
+  margin-right: 20px;
+}
+.topbar-brand-icon {
+  width: 28px; height: 28px;
+  background: var(--accent);
+  border-radius: 6px;
+  display: flex; align-items:center; justify-content:center;
+  font-size: 14px;
+  flex-shrink: 0;
+  box-shadow: 0 0 12px var(--accent-glow);
+}
+.topbar-brand-text {
+  font-family: 'Syne', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--white);
+  white-space: nowrap;
+}
+.topbar-divider {
+  width: 1px; height: 20px;
+  background: var(--border2);
+  margin: 0 16px;
+  flex-shrink: 0;
+}
+.topbar-links {
+  display: flex;
+  gap: 2px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  flex: 1;
+}
+.topbar-links::-webkit-scrollbar { display: none; }
+.topbar-link {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 11px;
+  border-radius: 6px;
+  font-size: 11px;
+  color: var(--text3);
+  text-decoration: none;
+  white-space: nowrap;
+  transition: all var(--transition);
+  border: 1px solid transparent;
+  flex-shrink: 0;
+}
+.topbar-link:hover {
+  color: var(--accent);
+  background: rgba(255,255,255,0.04);
+  border-color: var(--border2);
+}
+.topbar-link.active {
+  color: var(--accent);
+  background: rgba(255,255,255,0.05);
+  border-color: var(--accent-dim);
+}
+.topbar-link .link-emoji { font-size: 12px; }
+
+/* ── Page Header ── */
+.page-header {
+  position: relative;
+  padding: 64px 48px 48px;
+  border-bottom: 1px solid var(--border);
+  overflow: hidden;
+}
+.page-header::before {
+  content: '';
+  position: absolute;
+  top: -120px; right: -80px;
+  width: 600px; height: 600px;
+  background: radial-gradient(circle, var(--accent-glow) 0%, transparent 65%);
+  pointer-events: none;
+  opacity: 0.5;
+}
+.page-header::after {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--accent-dim), transparent);
+}
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 20px;
+  font-size: 11px;
+  color: var(--text3);
+}
+.breadcrumb a { color: var(--accent); text-decoration: none; }
+.breadcrumb a:hover { text-decoration: underline; }
+.breadcrumb-sep { color: var(--text3); }
+.page-eyebrow {
+  font-size: 11px;
+  letter-spacing: 0.35em;
+  color: var(--accent);
+  text-transform: uppercase;
+  margin-bottom: 14px;
+  opacity: 0.85;
+}
+.page-title {
+  font-family: 'Syne', sans-serif;
+  font-size: clamp(28px, 4.5vw, 58px);
+  font-weight: 800;
+  color: var(--white);
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  margin-bottom: 16px;
+}
+.page-title span { color: var(--accent); }
+.page-subtitle {
+  font-size: 13px;
+  color: var(--text2);
+  max-width: 620px;
+  line-height: 1.75;
+}
+.stat-strip {
+  display: flex;
+  gap: 40px;
+  margin-top: 36px;
+  flex-wrap: wrap;
+}
+.stat-item { display: flex; flex-direction: column; gap: 4px; }
+.stat-value {
+  font-family: 'Syne', sans-serif;
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--accent2);
+  letter-spacing: -0.01em;
+}
+.stat-label { font-size: 10px; color: var(--text3); letter-spacing: 0.1em; text-transform: uppercase; }
+
+/* ── Tab Nav ── */
+.tab-nav {
+  display: flex;
+  gap: 4px;
+  padding: 14px 48px;
+  border-bottom: 1px solid var(--border);
+  overflow-x: auto;
+  scrollbar-width: none;
+  background: var(--bg2);
+}
+.tab-nav::-webkit-scrollbar { display: none; }
+.tab-btn {
+  padding: 8px 18px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--text3);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11.5px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all var(--transition);
+  letter-spacing: 0.03em;
+}
+.tab-btn:hover { color: var(--text); border-color: var(--border2); background: rgba(255,255,255,0.03); }
+.tab-btn.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #000;
+  font-weight: 700;
+  box-shadow: 0 0 16px var(--accent-glow);
+}
+
+/* ── Main Content ── */
+main {
+  padding: 48px;
+  max-width: 1320px;
+  margin: 0 auto;
+}
+.tab-section { display: none; animation: fadeIn 0.3s ease; }
+.tab-section.active { display: block; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+/* ── Section Labels ── */
+.section-label {
+  font-size: 10px;
+  letter-spacing: 0.3em;
+  color: var(--accent);
+  text-transform: uppercase;
+  margin-bottom: 6px;
+  opacity: 0.8;
+}
+.section-heading {
+  font-family: 'Syne', sans-serif;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--white);
+  margin-bottom: 8px;
+}
+.section-body {
+  font-size: 12px;
+  color: var(--text2);
+  margin-bottom: 32px;
+  line-height: 1.8;
+  max-width: 780px;
+}
+
+/* ── Card Grid ── */
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+  margin-bottom: 40px;
+}
+.card-grid.cols-2 { grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); }
+.card-grid.cols-3 { grid-template-columns: repeat(3, 1fr); }
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 22px;
+  transition: all var(--transition);
+  position: relative;
+  overflow: hidden;
+}
+.card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--accent), transparent);
+  opacity: 0;
+  transition: opacity var(--transition);
+}
+.card:hover {
+  border-color: var(--accent-dim);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+}
+.card:hover::before { opacity: 1; }
+.card-emoji { font-size: 24px; margin-bottom: 12px; }
+.card-title {
+  font-family: 'Syne', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--white);
+  margin-bottom: 8px;
+}
+.card-text { font-size: 11px; color: var(--text2); line-height: 1.8; }
+
+/* ── Info Box ── */
+.info-box {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 24px 28px;
+  margin-bottom: 20px;
+}
+.info-box-title {
+  font-family: 'Syne', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--accent);
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.info-box-body { font-size: 12px; color: var(--text); line-height: 1.9; }
+
+/* ── Flow Steps ── */
+.flow-steps { display: flex; flex-direction: column; gap: 0; }
+.flow-step {
+  display: flex;
+  gap: 16px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--border);
+}
+.flow-step:last-child { border-bottom: none; }
+.flow-step-num {
+  width: 30px; height: 30px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--accent-dim);
+  display: flex; align-items:center; justify-content:center;
+  font-size: 11px; font-weight: 700;
+  color: var(--accent);
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+.flow-step-content { flex: 1; }
+.flow-step-title { font-size: 12px; font-weight: 700; color: var(--white); margin-bottom: 4px; }
+.flow-step-text { font-size: 11px; color: var(--text2); line-height: 1.7; }
+
+/* ── Code Block ── */
+.code-wrap {
+  background: #020508;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  margin-bottom: 20px;
+}
+.code-header {
+  background: var(--surface2);
+  padding: 9px 16px;
+  font-size: 10px;
+  color: var(--text3);
+  letter-spacing: 0.1em;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.code-dots { display:flex; gap:5px; }
+.code-dot { width:8px; height:8px; border-radius:50%; }
+.code-dot.red { background:#ff5f57; }
+.code-dot.yellow { background:#febc2e; }
+.code-dot.green { background:#28c840; }
+.code-block {
+  padding: 20px;
+  font-size: 11px;
+  line-height: 1.85;
+  overflow-x: auto;
+  color: #8ba8c8;
+}
+.c-comment { color: #3a5070; }
+.c-key { color: var(--accent); }
+.c-val { color: var(--accent2); }
+.c-str { color: #d4a862; }
+.c-kw { color: var(--accent3, #00ffc8); }
+
+/* ── Table ── */
+.data-table { width:100%; border-collapse:collapse; margin-bottom:32px; font-size:11.5px; }
+.data-table th {
+  padding: 11px 14px;
+  text-align: left;
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--accent);
+  border-bottom: 2px solid var(--border2);
+  background: var(--surface2);
+  white-space: nowrap;
+}
+.data-table td {
+  padding: 11px 14px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+  vertical-align: top;
+  line-height: 1.55;
+}
+.data-table tr:last-child td { border-bottom: none; }
+.data-table tbody tr { transition: background var(--transition); }
+.data-table tbody tr:hover td { background: rgba(255,255,255,0.02); }
+.data-table td:first-child { color: var(--accent2); font-weight: 600; }
+
+/* ── Pill Tags ── */
+.pill {
+  display: inline-block;
+  padding: 2px 9px;
+  border-radius: 20px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  border: 1px solid;
+}
+.pill-green { color: #00ff88; border-color: rgba(0,255,136,0.35); background: rgba(0,255,136,0.07); }
+.pill-red   { color: #ff5566; border-color: rgba(255,85,102,0.35); background: rgba(255,85,102,0.07); }
+.pill-yellow{ color: #f0c040; border-color: rgba(240,192,64,0.35);  background: rgba(240,192,64,0.07); }
+.pill-blue  { color: var(--accent); border-color: var(--accent-dim); background: rgba(0,168,255,0.07); }
+
+/* ── Cross-Reference Link ── */
+.xlink {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border: 1px solid var(--accent-dim);
+  border-radius: 4px;
+  font-size: 10px;
+  color: var(--accent);
+  text-decoration: none;
+  transition: all var(--transition);
+  margin-top: 8px;
+}
+.xlink:hover { background: var(--accent); color: #000; border-color: var(--accent); }
+.xlink::before { content: '→'; }
+
+/* ── Compare Grid ── */
+.compare-cols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 32px;
+}
+.compare-col {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.compare-col-head {
+  padding: 18px 22px;
+  border-bottom: 1px solid var(--border);
+}
+.compare-col-eyebrow { font-size: 10px; letter-spacing: 0.25em; text-transform: uppercase; margin-bottom: 5px; }
+.compare-col-title { font-family: 'Syne',sans-serif; font-size: 17px; font-weight: 700; color: var(--white); }
+.compare-col-sub { font-size: 11px; color: var(--text2); margin-top: 3px; }
+.compare-col-body { padding: 18px 22px; }
+.compare-row { display:flex; align-items:flex-start; gap:10px; padding:9px 0; border-bottom:1px solid var(--border); }
+.compare-row:last-child { border-bottom:none; }
+.compare-row-label { font-size:10px; color:var(--text3); text-transform:uppercase; letter-spacing:0.1em; margin-bottom:2px; }
+.compare-row-text { font-size:11px; color:var(--text); line-height:1.6; }
+
+/* ── Hub Cards (index page) ── */
+.hub-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px,1fr));
+  gap: 14px;
+}
+.hub-card {
+  display: block;
+  text-decoration: none;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 22px;
+  transition: all var(--transition);
+  position: relative;
+  overflow: hidden;
+}
+.hub-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, var(--card-accent-glow) 0%, transparent 60%);
+  opacity: 0;
+  transition: opacity var(--transition);
+}
+.hub-card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow);
+  border-color: var(--card-accent);
+}
+.hub-card:hover::after { opacity: 1; }
+.hub-card.active-page { border-color: var(--card-accent); box-shadow: 0 0 0 1px var(--card-accent); }
+.hub-icon { font-size: 28px; margin-bottom: 12px; }
+.hub-title { font-family:'Syne',sans-serif; font-size:14px; font-weight:700; margin-bottom:6px; }
+.hub-desc { font-size:10px; color:var(--text2); line-height:1.7; }
+.hub-cta { margin-top:12px; font-size:10px; letter-spacing:0.08em; text-transform:uppercase; font-weight:700; }
+
+/* ── Footer ── */
+.page-footer {
+  margin-top: 80px;
+  padding: 32px 48px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+.footer-prev, .footer-next {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+  padding: 12px 20px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 12px;
+  color: var(--text2);
+  transition: all var(--transition);
+  min-width: 160px;
+}
+.footer-prev:hover, .footer-next:hover { border-color: var(--accent); color: var(--accent); }
+.footer-prev { flex-direction: row; }
+.footer-next { flex-direction: row-reverse; text-align:right; }
+.footer-nav-label { font-size:10px; text-transform:uppercase; letter-spacing:0.1em; color:var(--text3); display:block; margin-bottom:2px; }
+.footer-nav-title { font-family:'Syne',sans-serif; font-size:13px; font-weight:700; color:var(--white); }
+.footer-arrow { font-size:18px; color:var(--accent); flex-shrink:0; }
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 10px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text3); }
+
+/* ══════════════════════════════
+   RESPONSIVE
+   ══════════════════════════════ */
+@media (max-width: 900px) {
+  .card-grid.cols-3 { grid-template-columns: repeat(2,1fr); }
+  .compare-cols { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 640px) {
+  .page-header { padding: 40px 20px 32px; }
+  .tab-nav { padding: 12px 16px; }
+  main { padding: 28px 16px; }
+  .topbar { padding: 0 16px; }
+  .topbar-brand-text { display: none; }
+  .page-footer { padding: 24px 16px; flex-direction: column; }
+  .footer-prev, .footer-next { min-width: unset; width:100%; }
+  .card-grid, .card-grid.cols-2, .card-grid.cols-3 { grid-template-columns: 1fr; }
+  .hub-grid { grid-template-columns: 1fr 1fr; }
+  .stat-strip { gap: 24px; }
+}
+
+@media (max-width: 380px) {
+  .hub-grid { grid-template-columns: 1fr; }
+}
+
+:root {
+  --accent: #f0c040;
+  --accent2: #ffe088;
+  --accent3: #00ffc8;
+  --accent-glow: rgba(240,192,64,0.05);
+  --accent-dim: rgba(240,192,64,0.3);
+}
+
+</style>
+</head>
+<body>
+
+<nav class="topbar">
+  <a href="index.html" class="topbar-brand" title="Home">
+    <div class="topbar-brand-icon">🏗️</div>
+    <span class="topbar-brand-text">Intune Deep Dive</span>
+  </a>
+  <div class="topbar-divider"></div>
+  <div class="topbar-links">
+    <a href="index.html" class="topbar-link"><span class="link-emoji">🏠</span><span class="link-text">Home</span></a>
+<a href="mdm-vs-byod.html" class="topbar-link"><span class="link-emoji">⚖️</span><span class="link-text">MDM vs BYOD</span></a>
+<a href="endpoint-security.html" class="topbar-link"><span class="link-emoji">🛡️</span><span class="link-text">Security</span></a>
+<a href="azure-ad.html" class="topbar-link"><span class="link-emoji">🔐</span><span class="link-text">Azure AD & CA</span></a>
+<a href="policy-management.html" class="topbar-link"><span class="link-emoji">📋</span><span class="link-text">Policies</span></a>
+<a href="windows-autopilot.html" class="topbar-link active"><span class="link-emoji">🚀</span><span class="link-text">Autopilot</span></a>
+<a href="certificates-scep-pkcs.html" class="topbar-link"><span class="link-emoji">🔑</span><span class="link-text">Certificates</span></a>
+<a href="microsoft-tunnel-vpn.html" class="topbar-link"><span class="link-emoji">🌐</span><span class="link-text">Tunnel & VPN</span></a>
+<a href="graph-api-automation.html" class="topbar-link"><span class="link-emoji">⚡</span><span class="link-text">Graph API</span></a>
+<a href="app-management.html" class="topbar-link"><span class="link-emoji">📦</span><span class="link-text">App Mgmt</span></a>
+
+  </div>
+</nav>
+
+<header class="page-header">
+  <div class="breadcrumb"><a href="index.html">Home</a><span class="breadcrumb-sep">/</span>Windows Autopilot</div>
+  <div class="page-eyebrow">// Zero-Touch Provisioning Deep Dive</div>
+  <h1 class="page-title">Windows <span>Autopilot</span></h1>
+  <p class="page-subtitle">How Autopilot transforms out-of-box provisioning — hardware hash registration, deployment profiles, deployment modes, ESP phases, and troubleshooting the most common failure points.</p>
+  <div class="stat-strip">
+    <div class="stat-item"><span class="stat-value">0</span><span class="stat-label">IT Touch Required</span></div>
+    <div class="stat-item"><span class="stat-value">4</span><span class="stat-label">Deployment Modes</span></div>
+    <div class="stat-item"><span class="stat-value">ESP</span><span class="stat-label">Enrollment Status Page</span></div>
+  </div>
+</header>
+<nav class="tab-nav">
+  <button class="tab-btn" onclick="showTab('ap-overview',this)">Overview</button>
+  <button class="tab-btn" onclick="showTab('ap-modes',this)">Deployment Modes</button>
+  <button class="tab-btn" onclick="showTab('ap-flow',this)">Technical Flow</button>
+  <button class="tab-btn" onclick="showTab('ap-esp',this)">ESP Deep Dive</button>
+  <button class="tab-btn" onclick="showTab('ap-trouble',this)">Troubleshooting</button>
+</nav>
+<main>
+
+<div class="tab-section" id="ap-overview">
+  <div class="section-label">What is Autopilot?</div>
+  <div class="section-heading">Zero-Touch Windows Provisioning</div>
+  <p class="section-body">Autopilot is a cloud-native zero-touch provisioning system. Devices ship directly to users — on first power-on they automatically enroll into Intune, apply all policies and apps, and are fully managed before the user reaches the desktop. No imaging. No IT hands-on.</p>
+  <div class="card-grid">
+    <div class="card"><div class="card-emoji">🏭</div><div class="card-title">Hardware Hash Registration</div><div class="card-text">Each device is identified by a 4K hardware hash. OEMs or IT register this hash to your tenant via Partner Center or PowerShell. Once registered, the device "knows" to join your tenant on first boot.</div></div>
+    <div class="card"><div class="card-emoji">📋</div><div class="card-title">Deployment Profiles</div><div class="card-text">Profiles define the OOBE experience: screens to skip (EULA, privacy, Cortana), join type (Entra ID vs Hybrid), naming template, deployment mode. Assigned to device groups in Intune.<br><a href="policy-management.html" class="xlink">Profile assignment & targeting</a></div></div>
+    <div class="card"><div class="card-emoji">📊</div><div class="card-title">Enrollment Status Page (ESP)</div><div class="card-text">Progress screen shown during provisioning. Tracks 3 phases: Device Preparation, Device Setup (policies + certs + apps), Account Setup (user apps). IT can block desktop access until complete.</div></div>
+    <div class="card"><div class="card-emoji">🔐</div><div class="card-title">Entra ID Join at OOBE</div><div class="card-text">Device joins Entra ID and triggers Intune MDM auto-enrollment simultaneously. PRT issued and stored in TPM. All subsequent app sign-ins use SSO — no passwords needed.<br><a href="azure-ad.html" class="xlink">Entra ID join types</a></div></div>
+    <div class="card"><div class="card-emoji">🔑</div><div class="card-title">Certificate Delivery at Enrollment</div><div class="card-text">SCEP certificate profiles deploy during the Device Setup phase of ESP. Wi-Fi and VPN certificates delivered before the user logs in — ensuring seamless corporate access from first sign-in.<br><a href="certificates-scep-pkcs.html" class="xlink">SCEP certificate flow</a></div></div>
+    <div class="card"><div class="card-emoji">🧹</div><div class="card-title">Autopilot Reset</div><div class="card-text">Re-provisions an existing device without re-imaging. Wipes all user data and apps, returns to ESP state, re-applies all Intune policies. Used for device refresh between employees.</div></div>
+  </div>
+</div>
+
+<div class="tab-section" id="ap-modes">
+  <div class="section-label">Deployment Modes</div>
+  <div class="section-heading">Four Ways to Deploy via Autopilot</div>
+  <p class="section-body">Each mode suits different scenarios — from remote workers to kiosk devices to enterprise fleet migration.</p>
+  <div class="info-box"><div class="info-box-title">👤 1. User-Driven Mode — Most Common</div><div class="info-box-body">User receives device, powers on, connects to Wi-Fi, signs in with work account. Autopilot profile loads automatically. ESP runs in background installing policies and apps. User reaches desktop once ESP completes.<br><br><strong style="color:var(--accent2)">Join types:</strong> Entra ID Joined (cloud-only) or Hybrid Entra ID Joined (requires on-prem connector).<br><strong style="color:var(--accent2)">Best for:</strong> Remote workers, distributed deployments, devices shipped directly to users.</div></div>
+  <div class="info-box"><div class="info-box-title">🤖 2. Self-Deploying Mode — Zero User Interaction</div><div class="info-box-body">No user credentials required. Device provisions fully automatically using TPM 2.0 device attestation. Device authenticates to Entra ID using the TPM certificate — not user credentials.<br><br><strong style="color:var(--accent2)">Requirement:</strong> TPM 2.0 mandatory.<br><strong style="color:var(--accent2)">Best for:</strong> Frontline kiosks, shared workstations, meeting room devices, digital signage.<br><a href="mdm-vs-byod.html" class="xlink">COBO enrollment model</a></div></div>
+  <div class="info-box"><div class="info-box-title">🧤 3. Pre-Provisioning (White Glove) — IT Pre-stages Device</div><div class="info-box-body">IT or reseller runs the "Technician flow" before the device reaches the user. Device Setup phase (policies, certs, Win32 apps) completes fully. Device resealed and shipped. User only completes the fast Account Setup phase.<br><br><strong style="color:var(--accent2)">Result:</strong> User gets a fully provisioned device in minutes instead of 30–60 min for full ESP.<br><strong style="color:var(--accent2)">Best for:</strong> Large deployments, slow WAN links at branch offices.</div></div>
+  <div class="info-box"><div class="info-box-title">🔄 4. Autopilot for Existing Devices — Re-purposing Older Hardware</div><div class="info-box-body">Used with SCCM (ConfigMgr) to re-deploy existing on-prem managed devices as cloud-managed Autopilot devices. A task sequence wipes the device, registers the hash, and triggers Autopilot enrollment on reboot.<br><br><strong style="color:var(--accent2)">Best for:</strong> Migration from SCCM to full cloud management, fleet modernisation.<br><a href="azure-ad.html" class="xlink">Hybrid Entra ID Join</a></div></div>
+</div>
+
+<div class="tab-section" id="ap-flow">
+  <div class="section-label">Technical Flow</div>
+  <div class="section-heading">User-Driven Autopilot — Step by Step</div>
+  <p class="section-body">The complete sequence from device power-on to fully managed desktop.</p>
+  <div class="info-box">
+    <div class="info-box-title">🔄 Complete Provisioning Flow</div>
+    <div class="flow-steps">
+      <div class="flow-step"><div class="flow-step-num">1</div><div class="flow-step-content"><div class="flow-step-title">Power On → OOBE Starts</div><div class="flow-step-text">Windows OOBE launches. Device connects to network. Windows contacts ztd.dds.microsoft.com (Autopilot service) with the device's hardware hash to check for an Autopilot profile.</div></div></div>
+      <div class="flow-step"><div class="flow-step-num">2</div><div class="flow-step-content"><div class="flow-step-title">Autopilot Profile Downloaded</div><div class="flow-step-text">Autopilot service matches the hash to the tenant. Returns the deployment profile — skip EULA: yes, skip privacy: yes, user-driven mode, naming template: CORP-%RAND:5%. OOBE customises itself.</div></div></div>
+      <div class="flow-step"><div class="flow-step-num">3</div><div class="flow-step-content"><div class="flow-step-title">User Signs In with Work Account</div><div class="flow-step-text">OOBE shows Microsoft sign-in page. User enters Entra ID UPN and password. MFA may be required depending on Conditional Access policy.</div></div></div>
+      <div class="flow-step"><div class="flow-step-num">4</div><div class="flow-step-content"><div class="flow-step-title">Entra ID Join</div><div class="flow-step-text">Device joins Entra ID. Device certificate issued and stored in TPM. PRT created. Device object created in Entra ID with deviceId, join type, and registrationTime.</div></div></div>
+      <div class="flow-step"><div class="flow-step-num">5</div><div class="flow-step-content"><div class="flow-step-title">MDM Auto-Enrollment</div><div class="flow-step-text">Entra ID sees MDM auto-enrollment configured for this user/group. Triggers Intune enrollment automatically. Device POSTs to Intune DM enrollment endpoint with the Entra ID token.</div></div></div>
+      <div class="flow-step"><div class="flow-step-num">6</div><div class="flow-step-content"><div class="flow-step-title">ESP — Device Setup Phase</div><div class="flow-step-text">ESP appears. Device policies download and apply (BitLocker, firewall, compliance). SCEP certificates deploy. Required Win32 apps start installing via IME. Longest phase — 10–45 min.</div></div></div>
+      <div class="flow-step"><div class="flow-step-num">7</div><div class="flow-step-content"><div class="flow-step-title">ESP — Account Setup Phase</div><div class="flow-step-text">User-targeted policies apply. Office 365, Teams install. OneDrive Known Folder Move silently configures. User-scoped certificates deploy.</div></div></div>
+      <div class="flow-step"><div class="flow-step-num">8</div><div class="flow-step-content"><div class="flow-step-title">Desktop — Fully Managed</div><div class="flow-step-text">User reaches desktop. All policies applied, apps installed, certificates in place. BitLocker active. Device is Compliant in Intune. CA grants full M365 access seamlessly.</div></div></div>
+    </div>
+  </div>
+</div>
+
+<div class="tab-section" id="ap-esp">
+  <div class="section-label">ESP Phases</div>
+  <div class="section-heading">Enrollment Status Page — Deep Dive</div>
+  <p class="section-body">ESP ensures a device is fully configured before the user accesses the desktop. Understanding its phases is key to diagnosing slow or stuck deployments.</p>
+  <div class="card-grid">
+    <div class="card"><div class="card-emoji">⚙️</div><div class="card-title">Phase 1 — Device Preparation</div><div class="card-text">Device registers with Intune. MDM certificate issued. Device inventory sent. Typically under 1 minute. If this hangs, check network connectivity to Intune endpoints.</div></div>
+    <div class="card"><div class="card-emoji">📥</div><div class="card-title">Phase 2 — Device Setup</div><div class="card-text">Device-targeted profiles apply. BitLocker, firewall, certificates, Wi-Fi/VPN. Required Win32 apps install via IME. <strong>Longest phase</strong> — 10–45 min depending on app count/size.<br><a href="certificates-scep-pkcs.html" class="xlink">SCEP delivery in ESP</a></div></div>
+    <div class="card"><div class="card-emoji">👤</div><div class="card-title">Phase 3 — Account Setup</div><div class="card-text">User-targeted policies and apps apply after sign-in. Office 365, Teams install. OneDrive silently configures. Faster than Phase 2 since heavy apps already installed.</div></div>
+    <div class="card"><div class="card-emoji">⏱️</div><div class="card-title">Timeout & Blocking</div><div class="card-text">Configure: block desktop until ESP completes · set timeout (15–720 min) · allow user bypass on timeout (safety net). Recommended: 60 min timeout with bypass allowed.</div></div>
+    <div class="card"><div class="card-emoji">🔍</div><div class="card-title">Diagnostic Logs</div><div class="card-text">If ESP fails: press Ctrl+Shift+D for diagnostics panel. Check MDMDiagReport.html. Event logs: DeviceManagement-Enterprise-Diagnostics-Provider.</div></div>
+    <div class="card"><div class="card-emoji">📦</div><div class="card-title">Required vs Available Apps</div><div class="card-text">Only <strong>Required</strong> apps block ESP. Available apps do not. Minimise Required apps to keep ESP fast. Office 365 and security tools are typical Required candidates.<br><a href="app-management.html" class="xlink">App assignment types</a></div></div>
+  </div>
+</div>
+
+<div class="tab-section" id="ap-trouble">
+  <div class="section-label">Troubleshooting</div>
+  <div class="section-heading">Common Autopilot Failures</div>
+  <p class="section-body">The most frequent Autopilot failure points with diagnosis and resolution steps.</p>
+  <table class="data-table">
+    <thead><tr><th>Symptom</th><th>Likely Cause</th><th>Resolution</th></tr></thead>
+    <tbody>
+      <tr><td>ESP stuck at "Identifying"</td><td>Device not registered in Autopilot or hardware hash mismatch</td><td>Verify device in Intune → Windows Enrollment → Devices. Re-import hardware hash if missing.</td></tr>
+      <tr><td>Error 0x80180014</td><td>No Intune licence assigned to user</td><td>Assign Intune/M365 licence to user before enrollment or use group-based licensing.</td></tr>
+      <tr><td>ESP stuck on an app</td><td>Win32 app detection rule failure or missing dependency</td><td>Check IME log: C:\ProgramData\Microsoft\IntuneManagementExtension\Logs\IntuneManagementExtension.log</td></tr>
+      <tr><td>"Something went wrong" at sign-in</td><td>CA policy blocking Autopilot — requires compliant device but not yet compliant during OOBE</td><td>Exclude Autopilot/Windows Enrollment from CA policies using a device filter exclusion.<br><a href="azure-ad.html" class="xlink">CA policy exclusions</a></td></tr>
+      <tr><td>Hybrid Join fails</td><td>ODJ connector not working or DC unreachable during OOBE</td><td>Check Intune Connector for AD service. Ensure device can reach DC on port 389/636.</td></tr>
+      <tr><td>Wrong Autopilot profile applied</td><td>Group assignment delay — device not yet in target Entra ID group</td><td>Use dynamic device groups with hardware hash or serial number. Verify group membership before deployment.</td></tr>
+    </tbody>
+  </table>
+</div>
+
+</main>
+
+<footer class="page-footer">
+  <a href="policy-management.html" class="footer-prev"><span class="footer-arrow">←</span><div><span class="footer-nav-label">Previous</span><span class="footer-nav-title">📋 Policies</span></div></a>
+  <span style="font-size:11px;color:var(--text3);">Intune Deep Dive Series — 10 Modules</span>
+  <a href="certificates-scep-pkcs.html" class="footer-next"><span class="footer-arrow">→</span><div><span class="footer-nav-label">Next</span><span class="footer-nav-title">🔑 Certificates</span></div></a>
+</footer>
+<script>
+// ── Tab switching with history ──
+function showTab(id, btn) {
+  document.querySelectorAll('.tab-section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  const el = document.getElementById(id);
+  if (el) el.classList.add('active');
+  if (btn) btn.classList.add('active');
+  // smooth scroll to tab content on mobile
+  if (window.innerWidth < 640) {
+    setTimeout(() => el && el.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+  }
+}
+
+// ── Topbar scroll shadow ──
+window.addEventListener('scroll', () => {
+  const tb = document.querySelector('.topbar');
+  if (tb) tb.style.boxShadow = scrollY > 10 ? '0 4px 24px rgba(0,0,0,0.5)' : '';
+}, { passive: true });
+
+// ── Activate first tab on load ──
+document.addEventListener('DOMContentLoaded', () => {
+  const firstBtn = document.querySelector('.tab-btn');
+  const firstSec = document.querySelector('.tab-section');
+  if (firstBtn && !document.querySelector('.tab-btn.active')) {
+    firstBtn.classList.add('active');
+  }
+  if (firstSec && !document.querySelector('.tab-section.active')) {
+    firstSec.classList.add('active');
+  }
+});
+</script>
+</body>
+</html>

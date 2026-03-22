@@ -1,0 +1,767 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Microsoft Intune Deep Dive — Microsoft Tunnel & VPN">
+<title>Microsoft Tunnel & VPN — Intune Deep Dive</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;600&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+
+/* ═══════════════════════════════════════════
+   INTUNE DEEP DIVE — SHARED DESIGN SYSTEM v3
+   ═══════════════════════════════════════════ */
+
+:root {
+  --bg: #05080f;
+  --bg2: #080d18;
+  --surface: #0c1220;
+  --surface2: #101828;
+  --border: #1a2840;
+  --border2: #243550;
+  --text: #c8d8ec;
+  --text2: #7a96b8;
+  --text3: #4a6080;
+  --white: #f0f6ff;
+  --radius: 12px;
+  --radius-sm: 7px;
+  --transition: 0.22s cubic-bezier(0.4,0,0.2,1);
+  --shadow: 0 4px 24px rgba(0,0,0,0.4);
+  --shadow-lg: 0 8px 48px rgba(0,0,0,0.6);
+}
+
+/* ── Reset ── */
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+html { scroll-behavior: smooth; font-size: 16px; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'IBM Plex Mono', monospace;
+  overflow-x: hidden;
+  min-height: 100vh;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+img { max-width:100%; display:block; }
+a { color: inherit; }
+
+/* ── Top Nav Bar ── */
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: rgba(5,8,15,0.92);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--border);
+  padding: 0 24px;
+  height: 52px;
+  display: flex;
+  align-items: center;
+  gap: 0;
+}
+.topbar-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+  flex-shrink: 0;
+  margin-right: 20px;
+}
+.topbar-brand-icon {
+  width: 28px; height: 28px;
+  background: var(--accent);
+  border-radius: 6px;
+  display: flex; align-items:center; justify-content:center;
+  font-size: 14px;
+  flex-shrink: 0;
+  box-shadow: 0 0 12px var(--accent-glow);
+}
+.topbar-brand-text {
+  font-family: 'Syne', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--white);
+  white-space: nowrap;
+}
+.topbar-divider {
+  width: 1px; height: 20px;
+  background: var(--border2);
+  margin: 0 16px;
+  flex-shrink: 0;
+}
+.topbar-links {
+  display: flex;
+  gap: 2px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  flex: 1;
+}
+.topbar-links::-webkit-scrollbar { display: none; }
+.topbar-link {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 11px;
+  border-radius: 6px;
+  font-size: 11px;
+  color: var(--text3);
+  text-decoration: none;
+  white-space: nowrap;
+  transition: all var(--transition);
+  border: 1px solid transparent;
+  flex-shrink: 0;
+}
+.topbar-link:hover {
+  color: var(--accent);
+  background: rgba(255,255,255,0.04);
+  border-color: var(--border2);
+}
+.topbar-link.active {
+  color: var(--accent);
+  background: rgba(255,255,255,0.05);
+  border-color: var(--accent-dim);
+}
+.topbar-link .link-emoji { font-size: 12px; }
+
+/* ── Page Header ── */
+.page-header {
+  position: relative;
+  padding: 64px 48px 48px;
+  border-bottom: 1px solid var(--border);
+  overflow: hidden;
+}
+.page-header::before {
+  content: '';
+  position: absolute;
+  top: -120px; right: -80px;
+  width: 600px; height: 600px;
+  background: radial-gradient(circle, var(--accent-glow) 0%, transparent 65%);
+  pointer-events: none;
+  opacity: 0.5;
+}
+.page-header::after {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--accent-dim), transparent);
+}
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 20px;
+  font-size: 11px;
+  color: var(--text3);
+}
+.breadcrumb a { color: var(--accent); text-decoration: none; }
+.breadcrumb a:hover { text-decoration: underline; }
+.breadcrumb-sep { color: var(--text3); }
+.page-eyebrow {
+  font-size: 11px;
+  letter-spacing: 0.35em;
+  color: var(--accent);
+  text-transform: uppercase;
+  margin-bottom: 14px;
+  opacity: 0.85;
+}
+.page-title {
+  font-family: 'Syne', sans-serif;
+  font-size: clamp(28px, 4.5vw, 58px);
+  font-weight: 800;
+  color: var(--white);
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  margin-bottom: 16px;
+}
+.page-title span { color: var(--accent); }
+.page-subtitle {
+  font-size: 13px;
+  color: var(--text2);
+  max-width: 620px;
+  line-height: 1.75;
+}
+.stat-strip {
+  display: flex;
+  gap: 40px;
+  margin-top: 36px;
+  flex-wrap: wrap;
+}
+.stat-item { display: flex; flex-direction: column; gap: 4px; }
+.stat-value {
+  font-family: 'Syne', sans-serif;
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--accent2);
+  letter-spacing: -0.01em;
+}
+.stat-label { font-size: 10px; color: var(--text3); letter-spacing: 0.1em; text-transform: uppercase; }
+
+/* ── Tab Nav ── */
+.tab-nav {
+  display: flex;
+  gap: 4px;
+  padding: 14px 48px;
+  border-bottom: 1px solid var(--border);
+  overflow-x: auto;
+  scrollbar-width: none;
+  background: var(--bg2);
+}
+.tab-nav::-webkit-scrollbar { display: none; }
+.tab-btn {
+  padding: 8px 18px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--text3);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11.5px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all var(--transition);
+  letter-spacing: 0.03em;
+}
+.tab-btn:hover { color: var(--text); border-color: var(--border2); background: rgba(255,255,255,0.03); }
+.tab-btn.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #000;
+  font-weight: 700;
+  box-shadow: 0 0 16px var(--accent-glow);
+}
+
+/* ── Main Content ── */
+main {
+  padding: 48px;
+  max-width: 1320px;
+  margin: 0 auto;
+}
+.tab-section { display: none; animation: fadeIn 0.3s ease; }
+.tab-section.active { display: block; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+/* ── Section Labels ── */
+.section-label {
+  font-size: 10px;
+  letter-spacing: 0.3em;
+  color: var(--accent);
+  text-transform: uppercase;
+  margin-bottom: 6px;
+  opacity: 0.8;
+}
+.section-heading {
+  font-family: 'Syne', sans-serif;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--white);
+  margin-bottom: 8px;
+}
+.section-body {
+  font-size: 12px;
+  color: var(--text2);
+  margin-bottom: 32px;
+  line-height: 1.8;
+  max-width: 780px;
+}
+
+/* ── Card Grid ── */
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+  margin-bottom: 40px;
+}
+.card-grid.cols-2 { grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); }
+.card-grid.cols-3 { grid-template-columns: repeat(3, 1fr); }
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 22px;
+  transition: all var(--transition);
+  position: relative;
+  overflow: hidden;
+}
+.card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--accent), transparent);
+  opacity: 0;
+  transition: opacity var(--transition);
+}
+.card:hover {
+  border-color: var(--accent-dim);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+}
+.card:hover::before { opacity: 1; }
+.card-emoji { font-size: 24px; margin-bottom: 12px; }
+.card-title {
+  font-family: 'Syne', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--white);
+  margin-bottom: 8px;
+}
+.card-text { font-size: 11px; color: var(--text2); line-height: 1.8; }
+
+/* ── Info Box ── */
+.info-box {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 24px 28px;
+  margin-bottom: 20px;
+}
+.info-box-title {
+  font-family: 'Syne', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--accent);
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.info-box-body { font-size: 12px; color: var(--text); line-height: 1.9; }
+
+/* ── Flow Steps ── */
+.flow-steps { display: flex; flex-direction: column; gap: 0; }
+.flow-step {
+  display: flex;
+  gap: 16px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--border);
+}
+.flow-step:last-child { border-bottom: none; }
+.flow-step-num {
+  width: 30px; height: 30px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--accent-dim);
+  display: flex; align-items:center; justify-content:center;
+  font-size: 11px; font-weight: 700;
+  color: var(--accent);
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+.flow-step-content { flex: 1; }
+.flow-step-title { font-size: 12px; font-weight: 700; color: var(--white); margin-bottom: 4px; }
+.flow-step-text { font-size: 11px; color: var(--text2); line-height: 1.7; }
+
+/* ── Code Block ── */
+.code-wrap {
+  background: #020508;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  margin-bottom: 20px;
+}
+.code-header {
+  background: var(--surface2);
+  padding: 9px 16px;
+  font-size: 10px;
+  color: var(--text3);
+  letter-spacing: 0.1em;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.code-dots { display:flex; gap:5px; }
+.code-dot { width:8px; height:8px; border-radius:50%; }
+.code-dot.red { background:#ff5f57; }
+.code-dot.yellow { background:#febc2e; }
+.code-dot.green { background:#28c840; }
+.code-block {
+  padding: 20px;
+  font-size: 11px;
+  line-height: 1.85;
+  overflow-x: auto;
+  color: #8ba8c8;
+}
+.c-comment { color: #3a5070; }
+.c-key { color: var(--accent); }
+.c-val { color: var(--accent2); }
+.c-str { color: #d4a862; }
+.c-kw { color: var(--accent3, #00ffc8); }
+
+/* ── Table ── */
+.data-table { width:100%; border-collapse:collapse; margin-bottom:32px; font-size:11.5px; }
+.data-table th {
+  padding: 11px 14px;
+  text-align: left;
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--accent);
+  border-bottom: 2px solid var(--border2);
+  background: var(--surface2);
+  white-space: nowrap;
+}
+.data-table td {
+  padding: 11px 14px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+  vertical-align: top;
+  line-height: 1.55;
+}
+.data-table tr:last-child td { border-bottom: none; }
+.data-table tbody tr { transition: background var(--transition); }
+.data-table tbody tr:hover td { background: rgba(255,255,255,0.02); }
+.data-table td:first-child { color: var(--accent2); font-weight: 600; }
+
+/* ── Pill Tags ── */
+.pill {
+  display: inline-block;
+  padding: 2px 9px;
+  border-radius: 20px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  border: 1px solid;
+}
+.pill-green { color: #00ff88; border-color: rgba(0,255,136,0.35); background: rgba(0,255,136,0.07); }
+.pill-red   { color: #ff5566; border-color: rgba(255,85,102,0.35); background: rgba(255,85,102,0.07); }
+.pill-yellow{ color: #f0c040; border-color: rgba(240,192,64,0.35);  background: rgba(240,192,64,0.07); }
+.pill-blue  { color: var(--accent); border-color: var(--accent-dim); background: rgba(0,168,255,0.07); }
+
+/* ── Cross-Reference Link ── */
+.xlink {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border: 1px solid var(--accent-dim);
+  border-radius: 4px;
+  font-size: 10px;
+  color: var(--accent);
+  text-decoration: none;
+  transition: all var(--transition);
+  margin-top: 8px;
+}
+.xlink:hover { background: var(--accent); color: #000; border-color: var(--accent); }
+.xlink::before { content: '→'; }
+
+/* ── Compare Grid ── */
+.compare-cols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 32px;
+}
+.compare-col {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.compare-col-head {
+  padding: 18px 22px;
+  border-bottom: 1px solid var(--border);
+}
+.compare-col-eyebrow { font-size: 10px; letter-spacing: 0.25em; text-transform: uppercase; margin-bottom: 5px; }
+.compare-col-title { font-family: 'Syne',sans-serif; font-size: 17px; font-weight: 700; color: var(--white); }
+.compare-col-sub { font-size: 11px; color: var(--text2); margin-top: 3px; }
+.compare-col-body { padding: 18px 22px; }
+.compare-row { display:flex; align-items:flex-start; gap:10px; padding:9px 0; border-bottom:1px solid var(--border); }
+.compare-row:last-child { border-bottom:none; }
+.compare-row-label { font-size:10px; color:var(--text3); text-transform:uppercase; letter-spacing:0.1em; margin-bottom:2px; }
+.compare-row-text { font-size:11px; color:var(--text); line-height:1.6; }
+
+/* ── Hub Cards (index page) ── */
+.hub-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px,1fr));
+  gap: 14px;
+}
+.hub-card {
+  display: block;
+  text-decoration: none;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 22px;
+  transition: all var(--transition);
+  position: relative;
+  overflow: hidden;
+}
+.hub-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, var(--card-accent-glow) 0%, transparent 60%);
+  opacity: 0;
+  transition: opacity var(--transition);
+}
+.hub-card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow);
+  border-color: var(--card-accent);
+}
+.hub-card:hover::after { opacity: 1; }
+.hub-card.active-page { border-color: var(--card-accent); box-shadow: 0 0 0 1px var(--card-accent); }
+.hub-icon { font-size: 28px; margin-bottom: 12px; }
+.hub-title { font-family:'Syne',sans-serif; font-size:14px; font-weight:700; margin-bottom:6px; }
+.hub-desc { font-size:10px; color:var(--text2); line-height:1.7; }
+.hub-cta { margin-top:12px; font-size:10px; letter-spacing:0.08em; text-transform:uppercase; font-weight:700; }
+
+/* ── Footer ── */
+.page-footer {
+  margin-top: 80px;
+  padding: 32px 48px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+.footer-prev, .footer-next {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+  padding: 12px 20px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 12px;
+  color: var(--text2);
+  transition: all var(--transition);
+  min-width: 160px;
+}
+.footer-prev:hover, .footer-next:hover { border-color: var(--accent); color: var(--accent); }
+.footer-prev { flex-direction: row; }
+.footer-next { flex-direction: row-reverse; text-align:right; }
+.footer-nav-label { font-size:10px; text-transform:uppercase; letter-spacing:0.1em; color:var(--text3); display:block; margin-bottom:2px; }
+.footer-nav-title { font-family:'Syne',sans-serif; font-size:13px; font-weight:700; color:var(--white); }
+.footer-arrow { font-size:18px; color:var(--accent); flex-shrink:0; }
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 10px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text3); }
+
+/* ══════════════════════════════
+   RESPONSIVE
+   ══════════════════════════════ */
+@media (max-width: 900px) {
+  .card-grid.cols-3 { grid-template-columns: repeat(2,1fr); }
+  .compare-cols { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 640px) {
+  .page-header { padding: 40px 20px 32px; }
+  .tab-nav { padding: 12px 16px; }
+  main { padding: 28px 16px; }
+  .topbar { padding: 0 16px; }
+  .topbar-brand-text { display: none; }
+  .page-footer { padding: 24px 16px; flex-direction: column; }
+  .footer-prev, .footer-next { min-width: unset; width:100%; }
+  .card-grid, .card-grid.cols-2, .card-grid.cols-3 { grid-template-columns: 1fr; }
+  .hub-grid { grid-template-columns: 1fr 1fr; }
+  .stat-strip { gap: 24px; }
+}
+
+@media (max-width: 380px) {
+  .hub-grid { grid-template-columns: 1fr; }
+}
+
+:root {
+  --accent: #e040fb;
+  --accent2: #f088ff;
+  --accent3: #00ffc8;
+  --accent-glow: rgba(224,64,251,0.05);
+  --accent-dim: rgba(224,64,251,0.3);
+}
+
+</style>
+</head>
+<body>
+
+<nav class="topbar">
+  <a href="index.html" class="topbar-brand" title="Home">
+    <div class="topbar-brand-icon">🏗️</div>
+    <span class="topbar-brand-text">Intune Deep Dive</span>
+  </a>
+  <div class="topbar-divider"></div>
+  <div class="topbar-links">
+    <a href="index.html" class="topbar-link"><span class="link-emoji">🏠</span><span class="link-text">Home</span></a>
+<a href="mdm-vs-byod.html" class="topbar-link"><span class="link-emoji">⚖️</span><span class="link-text">MDM vs BYOD</span></a>
+<a href="endpoint-security.html" class="topbar-link"><span class="link-emoji">🛡️</span><span class="link-text">Security</span></a>
+<a href="azure-ad.html" class="topbar-link"><span class="link-emoji">🔐</span><span class="link-text">Azure AD & CA</span></a>
+<a href="policy-management.html" class="topbar-link"><span class="link-emoji">📋</span><span class="link-text">Policies</span></a>
+<a href="windows-autopilot.html" class="topbar-link"><span class="link-emoji">🚀</span><span class="link-text">Autopilot</span></a>
+<a href="certificates-scep-pkcs.html" class="topbar-link"><span class="link-emoji">🔑</span><span class="link-text">Certificates</span></a>
+<a href="microsoft-tunnel-vpn.html" class="topbar-link active"><span class="link-emoji">🌐</span><span class="link-text">Tunnel & VPN</span></a>
+<a href="graph-api-automation.html" class="topbar-link"><span class="link-emoji">⚡</span><span class="link-text">Graph API</span></a>
+<a href="app-management.html" class="topbar-link"><span class="link-emoji">📦</span><span class="link-text">App Mgmt</span></a>
+
+  </div>
+</nav>
+
+<header class="page-header">
+  <div class="breadcrumb"><a href="index.html">Home</a><span class="breadcrumb-sep">/</span>Tunnel &amp; VPN</div>
+  <div class="page-eyebrow">// Network Access Deep Dive</div>
+  <h1 class="page-title">Microsoft <span>Tunnel</span><br>&amp; VPN</h1>
+  <p class="page-subtitle">Microsoft Tunnel gateway architecture, per-app VPN, Always-On VPN for Windows, split tunneling, mTLS device authentication, and VPN options compared.</p>
+  <div class="stat-strip">
+    <div class="stat-item"><span class="stat-value">Linux</span><span class="stat-label">Tunnel Server OS</span></div>
+    <div class="stat-item"><span class="stat-value">TLS 1.3</span><span class="stat-label">Transport Security</span></div>
+    <div class="stat-item"><span class="stat-value">Per-App</span><span class="stat-label">VPN Targeting</span></div>
+    <div class="stat-item"><span class="stat-value">mTLS</span><span class="stat-label">Device Auth</span></div>
+  </div>
+</header>
+<nav class="tab-nav">
+  <button class="tab-btn" onclick="showTab('v-overview',this)">Overview</button>
+  <button class="tab-btn" onclick="showTab('v-tunnel',this)">Microsoft Tunnel</button>
+  <button class="tab-btn" onclick="showTab('v-perapp',this)">Per-App VPN</button>
+  <button class="tab-btn" onclick="showTab('v-alwayson',this)">Always-On VPN</button>
+  <button class="tab-btn" onclick="showTab('v-compare',this)">Compare Options</button>
+</nav>
+<main>
+
+<div class="tab-section" id="v-overview">
+  <div class="section-label">VPN Options</div>
+  <div class="section-heading">Three VPN Approaches in Intune</div>
+  <p class="section-body">Intune manages three VPN approaches — Microsoft Tunnel (Microsoft's own mobile gateway), Per-App VPN (route only specific apps), and Always-On VPN (Windows full-device tunnel).</p>
+  <div class="card-grid">
+    <div class="card"><div class="card-emoji">🚇</div><div class="card-title">Microsoft Tunnel</div><div class="card-text">Purpose-built VPN gateway for iOS and Android. Runs as a Docker container on Linux in your DMZ. No third-party VPN licence needed. Integrates with Conditional Access for compliance gating.<br><a href="endpoint-security.html" class="xlink">Zero Trust network pillar</a></div></div>
+    <div class="card"><div class="card-emoji">📱</div><div class="card-title">Per-App VPN</div><div class="card-text">Only specified apps route traffic through the VPN. Personal apps go direct to internet. Work apps tunnel to on-premises. Works with Tunnel or third-party VPNs.<br><a href="app-management.html" class="xlink">App association</a></div></div>
+    <div class="card"><div class="card-emoji">💻</div><div class="card-title">Always-On VPN (Windows)</div><div class="card-text">Windows 10/11 built-in VPN. Connects automatically before user login and stays connected. Uses IKEv2 or SSTP. Configured via Intune DeviceTunnel + UserTunnel CSP profiles.<br><a href="policy-management.html" class="xlink">VPN profile in Settings Catalog</a></div></div>
+    <div class="card"><div class="card-emoji">🔌</div><div class="card-title">Third-Party VPN Integration</div><div class="card-text">Intune supports VPN profiles for Cisco AnyConnect, Palo Alto GlobalProtect, Zscaler, Check Point, F5, and others. Intune delivers config — the VPN client app deployed via app management.<br><a href="app-management.html" class="xlink">Deploying VPN client apps</a></div></div>
+    <div class="card"><div class="card-emoji">🔑</div><div class="card-title">Certificate Authentication for VPN</div><div class="card-text">All Intune VPN integrations support certificate-based authentication. SCEP certificate deployed by Intune authenticates the device — no passwords, phishing-resistant.<br><a href="certificates-scep-pkcs.html" class="xlink">SCEP certificate delivery</a></div></div>
+    <div class="card"><div class="card-emoji">🚦</div><div class="card-title">Conditional Access + VPN</div><div class="card-text">Only compliant, Intune-managed devices can establish a VPN connection. Non-compliant devices denied at the gateway using certificate validation integrated with Intune compliance state.<br><a href="azure-ad.html" class="xlink">CA compliance check</a></div></div>
+  </div>
+</div>
+
+<div class="tab-section" id="v-tunnel">
+  <div class="section-label">Tunnel Architecture</div>
+  <div class="section-heading">Microsoft Tunnel — How It Works</div>
+  <p class="section-body">Microsoft Tunnel runs as a Docker container on a Linux server in your DMZ, providing managed iOS and Android devices with secure access to on-premises resources.</p>
+  <div class="info-box">
+    <div class="info-box-title">🔄 Tunnel Connection Flow</div>
+    <div class="flow-steps">
+      <div class="flow-step"><div class="flow-step-num">1</div><div class="flow-step-content"><div class="flow-step-title">Device Requests Connection</div><div class="flow-step-text">Microsoft Defender app on iOS/Android initiates connection to the Tunnel gateway. Intune VPN profile specifies the Tunnel server FQDN and port 443. Defender acts as the VPN client — no separate app needed.</div></div></div>
+      <div class="flow-step"><div class="flow-step-num">2</div><div class="flow-step-content"><div class="flow-step-title">Mutual TLS Authentication</div><div class="flow-step-text">Device presents its Intune-managed client certificate (from SCEP/PKCS). Tunnel server validates certificate against the trusted root CA. Device validates Tunnel server's TLS certificate. mTLS established.<br><a href="certificates-scep-pkcs.html" class="xlink">Certificate deployment</a></div></div></div>
+      <div class="flow-step"><div class="flow-step-num">3</div><div class="flow-step-content"><div class="flow-step-title">Compliance Check via Intune</div><div class="flow-step-text">Tunnel server calls Intune service to verify the device is compliant. Non-compliant devices are rejected — even with a valid certificate. This is the Conditional Access integration point for Tunnel.</div></div></div>
+      <div class="flow-step"><div class="flow-step-num">4</div><div class="flow-step-content"><div class="flow-step-title">TLS Tunnel Established</div><div class="flow-step-text">Specified app traffic (per-app VPN) or all traffic routes through the tunnel. Tunnel server proxies requests to on-premises resources on the internal network.</div></div></div>
+      <div class="flow-step"><div class="flow-step-num">5</div><div class="flow-step-content"><div class="flow-step-title">Tunnel Forwards to On-Prem</div><div class="flow-step-text">Tunnel server accesses the internal network via its second NIC or routing. Forwards device requests to appropriate internal servers. Returns responses through the tunnel to the device.</div></div></div>
+    </div>
+  </div>
+</div>
+
+<div class="tab-section" id="v-perapp">
+  <div class="section-label">Per-App VPN</div>
+  <div class="section-heading">Route Only Work Apps Through VPN</div>
+  <p class="section-body">Per-App VPN ensures only corporate apps use the VPN tunnel. Personal apps go directly to the internet. Configured by associating specific apps with a VPN profile in Intune.</p>
+  <div class="info-box">
+    <div class="info-box-title">📱 How Per-App VPN Works on iOS</div>
+    <div class="info-box-body">
+      1. Admin creates VPN profile in Intune (Tunnel or third-party) with per-app VPN mode enabled<br>
+      2. Admin associates specific managed apps with the VPN profile<br>
+      3. Policy deployed to device — iOS registers app bundle IDs with the VPN framework<br>
+      4. User opens <strong style="color:var(--accent2)">Teams or SharePoint</strong> → iOS automatically brings up the VPN tunnel<br>
+      5. User opens <strong style="color:#ff6b35">Safari or Instagram</strong> → traffic goes directly to internet, no VPN<br>
+      6. VPN disconnects automatically when all associated apps are closed<br><br>
+      <strong style="color:var(--accent)">Result:</strong> Corporate data never leaves the tunnel. Personal data never touches the corporate network.<br>
+      <a href="mdm-vs-byod.html" class="xlink">BYOD data isolation</a>
+    </div>
+  </div>
+  <div class="card-grid">
+    <div class="card"><div class="card-emoji">📲</div><div class="card-title">App Association in Intune</div><div class="card-text">In the VPN profile assignment, specify which apps trigger VPN using bundle IDs. Works with Intune-deployed apps. On Android, works with Work Profile apps only — personal side excluded by design.</div></div>
+    <div class="card"><div class="card-emoji">✂️</div><div class="card-title">Split Tunneling</div><div class="card-text">Even in full-device VPN mode, route only specific IP ranges or domains through the tunnel. Internet traffic goes direct. Reduces bandwidth on VPN gateway and improves user performance.</div></div>
+    <div class="card"><div class="card-emoji">🔒</div><div class="card-title">On-Demand VPN Rules (iOS)</div><div class="card-text">Automatically connect when accessing specific domains (*.contoso.com), disconnect when on trusted Wi-Fi (corporate Wi-Fi). Configured via Intune VPN profile XML payload.</div></div>
+  </div>
+</div>
+
+<div class="tab-section" id="v-alwayson">
+  <div class="section-label">Always-On VPN</div>
+  <div class="section-heading">Windows Always-On VPN</div>
+  <p class="section-body">Windows Always-On VPN maintains a persistent tunnel for Windows devices, providing seamless on-premises access without user interaction.</p>
+  <div class="compare-cols">
+    <div class="compare-col" style="border-top:3px solid var(--accent);">
+      <div class="compare-col-head"><div class="compare-col-title">Device Tunnel</div><div class="compare-col-sub">Connects before user login</div></div>
+      <div class="compare-col-body">
+        <div class="compare-row"><div><div class="compare-row-text">Uses machine certificate for auth</div></div></div>
+        <div class="compare-row"><div><div class="compare-row-text">Allows DC/domain connectivity at boot</div></div></div>
+        <div class="compare-row"><div><div class="compare-row-text">Enables Group Policy processing</div></div></div>
+        <div class="compare-row"><div><div class="compare-row-text">Required for Hybrid Entra Join<br><a href="azure-ad.html" class="xlink">Hybrid Join</a></div></div></div>
+      </div>
+    </div>
+    <div class="compare-col" style="border-top:3px solid #f0c040;">
+      <div class="compare-col-head"><div class="compare-col-title">User Tunnel</div><div class="compare-col-sub">Connects after user login</div></div>
+      <div class="compare-col-body">
+        <div class="compare-row"><div><div class="compare-row-text">Uses user certificate or EAP auth</div></div></div>
+        <div class="compare-row"><div><div class="compare-row-text">Provides access to user resources</div></div></div>
+        <div class="compare-row"><div><div class="compare-row-text">Supports per-user split tunneling</div></div></div>
+        <div class="compare-row"><div><div class="compare-row-text">Works on Entra ID joined devices. Most common deployment type.</div></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="tab-section" id="v-compare">
+  <div class="section-label">Comparison</div>
+  <div class="section-heading">VPN Options Compared</div>
+  <table class="data-table">
+    <thead><tr><th>Feature</th><th>Microsoft Tunnel</th><th>Always-On VPN</th><th>3rd Party VPN</th></tr></thead>
+    <tbody>
+      <tr><td>Platforms</td><td>iOS, Android</td><td>Windows 10/11</td><td>iOS, Android, Windows</td></tr>
+      <tr><td>Server Infrastructure</td><td>Linux server (Docker) on-prem or Azure VM</td><td>Windows RRAS or 3rd party gateway</td><td>3rd party VPN gateway</td></tr>
+      <tr><td>Client App</td><td>Microsoft Defender (built-in)</td><td>Windows built-in VPN</td><td>Vendor-specific app</td></tr>
+      <tr><td>Certificate Auth</td><td><span class="pill pill-green">✅ SCEP/PKCS</span></td><td><span class="pill pill-green">✅ Machine/User cert</span></td><td><span class="pill pill-green">✅ Via Intune cert profile</span></td></tr>
+      <tr><td>CA Integration</td><td><span class="pill pill-green">✅ Native compliance check</span></td><td><span class="pill pill-green">✅ Via CA policy</span></td><td><span class="pill pill-yellow">⚠️ Varies by vendor</span></td></tr>
+      <tr><td>Per-App Capability</td><td><span class="pill pill-green">✅ Yes</span></td><td><span class="pill pill-yellow">⚠️ App-triggered rules only</span></td><td><span class="pill pill-green">✅ Yes</span></td></tr>
+      <tr><td>Cost</td><td>Included with Intune licence</td><td>Included with Windows</td><td>Requires 3rd party licence</td></tr>
+    </tbody>
+  </table>
+</div>
+
+</main>
+
+<footer class="page-footer">
+  <a href="certificates-scep-pkcs.html" class="footer-prev"><span class="footer-arrow">←</span><div><span class="footer-nav-label">Previous</span><span class="footer-nav-title">🔑 Certificates</span></div></a>
+  <span style="font-size:11px;color:var(--text3);">Intune Deep Dive Series — 10 Modules</span>
+  <a href="graph-api-automation.html" class="footer-next"><span class="footer-arrow">→</span><div><span class="footer-nav-label">Next</span><span class="footer-nav-title">⚡ Graph API</span></div></a>
+</footer>
+<script>
+// ── Tab switching with history ──
+function showTab(id, btn) {
+  document.querySelectorAll('.tab-section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  const el = document.getElementById(id);
+  if (el) el.classList.add('active');
+  if (btn) btn.classList.add('active');
+  // smooth scroll to tab content on mobile
+  if (window.innerWidth < 640) {
+    setTimeout(() => el && el.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+  }
+}
+
+// ── Topbar scroll shadow ──
+window.addEventListener('scroll', () => {
+  const tb = document.querySelector('.topbar');
+  if (tb) tb.style.boxShadow = scrollY > 10 ? '0 4px 24px rgba(0,0,0,0.5)' : '';
+}, { passive: true });
+
+// ── Activate first tab on load ──
+document.addEventListener('DOMContentLoaded', () => {
+  const firstBtn = document.querySelector('.tab-btn');
+  const firstSec = document.querySelector('.tab-section');
+  if (firstBtn && !document.querySelector('.tab-btn.active')) {
+    firstBtn.classList.add('active');
+  }
+  if (firstSec && !document.querySelector('.tab-section.active')) {
+    firstSec.classList.add('active');
+  }
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,778 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Microsoft Intune Deep Dive — Endpoint Security & Compliance">
+<title>Endpoint Security & Compliance — Intune Deep Dive</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;600&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+
+/* ═══════════════════════════════════════════
+   INTUNE DEEP DIVE — SHARED DESIGN SYSTEM v3
+   ═══════════════════════════════════════════ */
+
+:root {
+  --bg: #05080f;
+  --bg2: #080d18;
+  --surface: #0c1220;
+  --surface2: #101828;
+  --border: #1a2840;
+  --border2: #243550;
+  --text: #c8d8ec;
+  --text2: #7a96b8;
+  --text3: #4a6080;
+  --white: #f0f6ff;
+  --radius: 12px;
+  --radius-sm: 7px;
+  --transition: 0.22s cubic-bezier(0.4,0,0.2,1);
+  --shadow: 0 4px 24px rgba(0,0,0,0.4);
+  --shadow-lg: 0 8px 48px rgba(0,0,0,0.6);
+}
+
+/* ── Reset ── */
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+html { scroll-behavior: smooth; font-size: 16px; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'IBM Plex Mono', monospace;
+  overflow-x: hidden;
+  min-height: 100vh;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+img { max-width:100%; display:block; }
+a { color: inherit; }
+
+/* ── Top Nav Bar ── */
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: rgba(5,8,15,0.92);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--border);
+  padding: 0 24px;
+  height: 52px;
+  display: flex;
+  align-items: center;
+  gap: 0;
+}
+.topbar-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+  flex-shrink: 0;
+  margin-right: 20px;
+}
+.topbar-brand-icon {
+  width: 28px; height: 28px;
+  background: var(--accent);
+  border-radius: 6px;
+  display: flex; align-items:center; justify-content:center;
+  font-size: 14px;
+  flex-shrink: 0;
+  box-shadow: 0 0 12px var(--accent-glow);
+}
+.topbar-brand-text {
+  font-family: 'Syne', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--white);
+  white-space: nowrap;
+}
+.topbar-divider {
+  width: 1px; height: 20px;
+  background: var(--border2);
+  margin: 0 16px;
+  flex-shrink: 0;
+}
+.topbar-links {
+  display: flex;
+  gap: 2px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  flex: 1;
+}
+.topbar-links::-webkit-scrollbar { display: none; }
+.topbar-link {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 11px;
+  border-radius: 6px;
+  font-size: 11px;
+  color: var(--text3);
+  text-decoration: none;
+  white-space: nowrap;
+  transition: all var(--transition);
+  border: 1px solid transparent;
+  flex-shrink: 0;
+}
+.topbar-link:hover {
+  color: var(--accent);
+  background: rgba(255,255,255,0.04);
+  border-color: var(--border2);
+}
+.topbar-link.active {
+  color: var(--accent);
+  background: rgba(255,255,255,0.05);
+  border-color: var(--accent-dim);
+}
+.topbar-link .link-emoji { font-size: 12px; }
+
+/* ── Page Header ── */
+.page-header {
+  position: relative;
+  padding: 64px 48px 48px;
+  border-bottom: 1px solid var(--border);
+  overflow: hidden;
+}
+.page-header::before {
+  content: '';
+  position: absolute;
+  top: -120px; right: -80px;
+  width: 600px; height: 600px;
+  background: radial-gradient(circle, var(--accent-glow) 0%, transparent 65%);
+  pointer-events: none;
+  opacity: 0.5;
+}
+.page-header::after {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--accent-dim), transparent);
+}
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 20px;
+  font-size: 11px;
+  color: var(--text3);
+}
+.breadcrumb a { color: var(--accent); text-decoration: none; }
+.breadcrumb a:hover { text-decoration: underline; }
+.breadcrumb-sep { color: var(--text3); }
+.page-eyebrow {
+  font-size: 11px;
+  letter-spacing: 0.35em;
+  color: var(--accent);
+  text-transform: uppercase;
+  margin-bottom: 14px;
+  opacity: 0.85;
+}
+.page-title {
+  font-family: 'Syne', sans-serif;
+  font-size: clamp(28px, 4.5vw, 58px);
+  font-weight: 800;
+  color: var(--white);
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  margin-bottom: 16px;
+}
+.page-title span { color: var(--accent); }
+.page-subtitle {
+  font-size: 13px;
+  color: var(--text2);
+  max-width: 620px;
+  line-height: 1.75;
+}
+.stat-strip {
+  display: flex;
+  gap: 40px;
+  margin-top: 36px;
+  flex-wrap: wrap;
+}
+.stat-item { display: flex; flex-direction: column; gap: 4px; }
+.stat-value {
+  font-family: 'Syne', sans-serif;
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--accent2);
+  letter-spacing: -0.01em;
+}
+.stat-label { font-size: 10px; color: var(--text3); letter-spacing: 0.1em; text-transform: uppercase; }
+
+/* ── Tab Nav ── */
+.tab-nav {
+  display: flex;
+  gap: 4px;
+  padding: 14px 48px;
+  border-bottom: 1px solid var(--border);
+  overflow-x: auto;
+  scrollbar-width: none;
+  background: var(--bg2);
+}
+.tab-nav::-webkit-scrollbar { display: none; }
+.tab-btn {
+  padding: 8px 18px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--text3);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11.5px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all var(--transition);
+  letter-spacing: 0.03em;
+}
+.tab-btn:hover { color: var(--text); border-color: var(--border2); background: rgba(255,255,255,0.03); }
+.tab-btn.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #000;
+  font-weight: 700;
+  box-shadow: 0 0 16px var(--accent-glow);
+}
+
+/* ── Main Content ── */
+main {
+  padding: 48px;
+  max-width: 1320px;
+  margin: 0 auto;
+}
+.tab-section { display: none; animation: fadeIn 0.3s ease; }
+.tab-section.active { display: block; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+/* ── Section Labels ── */
+.section-label {
+  font-size: 10px;
+  letter-spacing: 0.3em;
+  color: var(--accent);
+  text-transform: uppercase;
+  margin-bottom: 6px;
+  opacity: 0.8;
+}
+.section-heading {
+  font-family: 'Syne', sans-serif;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--white);
+  margin-bottom: 8px;
+}
+.section-body {
+  font-size: 12px;
+  color: var(--text2);
+  margin-bottom: 32px;
+  line-height: 1.8;
+  max-width: 780px;
+}
+
+/* ── Card Grid ── */
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+  margin-bottom: 40px;
+}
+.card-grid.cols-2 { grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); }
+.card-grid.cols-3 { grid-template-columns: repeat(3, 1fr); }
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 22px;
+  transition: all var(--transition);
+  position: relative;
+  overflow: hidden;
+}
+.card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--accent), transparent);
+  opacity: 0;
+  transition: opacity var(--transition);
+}
+.card:hover {
+  border-color: var(--accent-dim);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+}
+.card:hover::before { opacity: 1; }
+.card-emoji { font-size: 24px; margin-bottom: 12px; }
+.card-title {
+  font-family: 'Syne', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--white);
+  margin-bottom: 8px;
+}
+.card-text { font-size: 11px; color: var(--text2); line-height: 1.8; }
+
+/* ── Info Box ── */
+.info-box {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 24px 28px;
+  margin-bottom: 20px;
+}
+.info-box-title {
+  font-family: 'Syne', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--accent);
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.info-box-body { font-size: 12px; color: var(--text); line-height: 1.9; }
+
+/* ── Flow Steps ── */
+.flow-steps { display: flex; flex-direction: column; gap: 0; }
+.flow-step {
+  display: flex;
+  gap: 16px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--border);
+}
+.flow-step:last-child { border-bottom: none; }
+.flow-step-num {
+  width: 30px; height: 30px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--accent-dim);
+  display: flex; align-items:center; justify-content:center;
+  font-size: 11px; font-weight: 700;
+  color: var(--accent);
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+.flow-step-content { flex: 1; }
+.flow-step-title { font-size: 12px; font-weight: 700; color: var(--white); margin-bottom: 4px; }
+.flow-step-text { font-size: 11px; color: var(--text2); line-height: 1.7; }
+
+/* ── Code Block ── */
+.code-wrap {
+  background: #020508;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  margin-bottom: 20px;
+}
+.code-header {
+  background: var(--surface2);
+  padding: 9px 16px;
+  font-size: 10px;
+  color: var(--text3);
+  letter-spacing: 0.1em;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.code-dots { display:flex; gap:5px; }
+.code-dot { width:8px; height:8px; border-radius:50%; }
+.code-dot.red { background:#ff5f57; }
+.code-dot.yellow { background:#febc2e; }
+.code-dot.green { background:#28c840; }
+.code-block {
+  padding: 20px;
+  font-size: 11px;
+  line-height: 1.85;
+  overflow-x: auto;
+  color: #8ba8c8;
+}
+.c-comment { color: #3a5070; }
+.c-key { color: var(--accent); }
+.c-val { color: var(--accent2); }
+.c-str { color: #d4a862; }
+.c-kw { color: var(--accent3, #00ffc8); }
+
+/* ── Table ── */
+.data-table { width:100%; border-collapse:collapse; margin-bottom:32px; font-size:11.5px; }
+.data-table th {
+  padding: 11px 14px;
+  text-align: left;
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--accent);
+  border-bottom: 2px solid var(--border2);
+  background: var(--surface2);
+  white-space: nowrap;
+}
+.data-table td {
+  padding: 11px 14px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+  vertical-align: top;
+  line-height: 1.55;
+}
+.data-table tr:last-child td { border-bottom: none; }
+.data-table tbody tr { transition: background var(--transition); }
+.data-table tbody tr:hover td { background: rgba(255,255,255,0.02); }
+.data-table td:first-child { color: var(--accent2); font-weight: 600; }
+
+/* ── Pill Tags ── */
+.pill {
+  display: inline-block;
+  padding: 2px 9px;
+  border-radius: 20px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  border: 1px solid;
+}
+.pill-green { color: #00ff88; border-color: rgba(0,255,136,0.35); background: rgba(0,255,136,0.07); }
+.pill-red   { color: #ff5566; border-color: rgba(255,85,102,0.35); background: rgba(255,85,102,0.07); }
+.pill-yellow{ color: #f0c040; border-color: rgba(240,192,64,0.35);  background: rgba(240,192,64,0.07); }
+.pill-blue  { color: var(--accent); border-color: var(--accent-dim); background: rgba(0,168,255,0.07); }
+
+/* ── Cross-Reference Link ── */
+.xlink {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border: 1px solid var(--accent-dim);
+  border-radius: 4px;
+  font-size: 10px;
+  color: var(--accent);
+  text-decoration: none;
+  transition: all var(--transition);
+  margin-top: 8px;
+}
+.xlink:hover { background: var(--accent); color: #000; border-color: var(--accent); }
+.xlink::before { content: '→'; }
+
+/* ── Compare Grid ── */
+.compare-cols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 32px;
+}
+.compare-col {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.compare-col-head {
+  padding: 18px 22px;
+  border-bottom: 1px solid var(--border);
+}
+.compare-col-eyebrow { font-size: 10px; letter-spacing: 0.25em; text-transform: uppercase; margin-bottom: 5px; }
+.compare-col-title { font-family: 'Syne',sans-serif; font-size: 17px; font-weight: 700; color: var(--white); }
+.compare-col-sub { font-size: 11px; color: var(--text2); margin-top: 3px; }
+.compare-col-body { padding: 18px 22px; }
+.compare-row { display:flex; align-items:flex-start; gap:10px; padding:9px 0; border-bottom:1px solid var(--border); }
+.compare-row:last-child { border-bottom:none; }
+.compare-row-label { font-size:10px; color:var(--text3); text-transform:uppercase; letter-spacing:0.1em; margin-bottom:2px; }
+.compare-row-text { font-size:11px; color:var(--text); line-height:1.6; }
+
+/* ── Hub Cards (index page) ── */
+.hub-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px,1fr));
+  gap: 14px;
+}
+.hub-card {
+  display: block;
+  text-decoration: none;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 22px;
+  transition: all var(--transition);
+  position: relative;
+  overflow: hidden;
+}
+.hub-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, var(--card-accent-glow) 0%, transparent 60%);
+  opacity: 0;
+  transition: opacity var(--transition);
+}
+.hub-card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow);
+  border-color: var(--card-accent);
+}
+.hub-card:hover::after { opacity: 1; }
+.hub-card.active-page { border-color: var(--card-accent); box-shadow: 0 0 0 1px var(--card-accent); }
+.hub-icon { font-size: 28px; margin-bottom: 12px; }
+.hub-title { font-family:'Syne',sans-serif; font-size:14px; font-weight:700; margin-bottom:6px; }
+.hub-desc { font-size:10px; color:var(--text2); line-height:1.7; }
+.hub-cta { margin-top:12px; font-size:10px; letter-spacing:0.08em; text-transform:uppercase; font-weight:700; }
+
+/* ── Footer ── */
+.page-footer {
+  margin-top: 80px;
+  padding: 32px 48px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+.footer-prev, .footer-next {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+  padding: 12px 20px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 12px;
+  color: var(--text2);
+  transition: all var(--transition);
+  min-width: 160px;
+}
+.footer-prev:hover, .footer-next:hover { border-color: var(--accent); color: var(--accent); }
+.footer-prev { flex-direction: row; }
+.footer-next { flex-direction: row-reverse; text-align:right; }
+.footer-nav-label { font-size:10px; text-transform:uppercase; letter-spacing:0.1em; color:var(--text3); display:block; margin-bottom:2px; }
+.footer-nav-title { font-family:'Syne',sans-serif; font-size:13px; font-weight:700; color:var(--white); }
+.footer-arrow { font-size:18px; color:var(--accent); flex-shrink:0; }
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 10px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text3); }
+
+/* ══════════════════════════════
+   RESPONSIVE
+   ══════════════════════════════ */
+@media (max-width: 900px) {
+  .card-grid.cols-3 { grid-template-columns: repeat(2,1fr); }
+  .compare-cols { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 640px) {
+  .page-header { padding: 40px 20px 32px; }
+  .tab-nav { padding: 12px 16px; }
+  main { padding: 28px 16px; }
+  .topbar { padding: 0 16px; }
+  .topbar-brand-text { display: none; }
+  .page-footer { padding: 24px 16px; flex-direction: column; }
+  .footer-prev, .footer-next { min-width: unset; width:100%; }
+  .card-grid, .card-grid.cols-2, .card-grid.cols-3 { grid-template-columns: 1fr; }
+  .hub-grid { grid-template-columns: 1fr 1fr; }
+  .stat-strip { gap: 24px; }
+}
+
+@media (max-width: 380px) {
+  .hub-grid { grid-template-columns: 1fr; }
+}
+
+:root {
+  --accent: #a855f7;
+  --accent2: #c47aff;
+  --accent3: #00ffc8;
+  --accent-glow: rgba(168,85,247,0.05);
+  --accent-dim: rgba(168,85,247,0.3);
+}
+
+</style>
+</head>
+<body>
+
+<nav class="topbar">
+  <a href="index.html" class="topbar-brand" title="Home">
+    <div class="topbar-brand-icon">🏗️</div>
+    <span class="topbar-brand-text">Intune Deep Dive</span>
+  </a>
+  <div class="topbar-divider"></div>
+  <div class="topbar-links">
+    <a href="index.html" class="topbar-link"><span class="link-emoji">🏠</span><span class="link-text">Home</span></a>
+<a href="mdm-vs-byod.html" class="topbar-link"><span class="link-emoji">⚖️</span><span class="link-text">MDM vs BYOD</span></a>
+<a href="endpoint-security.html" class="topbar-link active"><span class="link-emoji">🛡️</span><span class="link-text">Security</span></a>
+<a href="azure-ad.html" class="topbar-link"><span class="link-emoji">🔐</span><span class="link-text">Azure AD & CA</span></a>
+<a href="policy-management.html" class="topbar-link"><span class="link-emoji">📋</span><span class="link-text">Policies</span></a>
+<a href="windows-autopilot.html" class="topbar-link"><span class="link-emoji">🚀</span><span class="link-text">Autopilot</span></a>
+<a href="certificates-scep-pkcs.html" class="topbar-link"><span class="link-emoji">🔑</span><span class="link-text">Certificates</span></a>
+<a href="microsoft-tunnel-vpn.html" class="topbar-link"><span class="link-emoji">🌐</span><span class="link-text">Tunnel & VPN</span></a>
+<a href="graph-api-automation.html" class="topbar-link"><span class="link-emoji">⚡</span><span class="link-text">Graph API</span></a>
+<a href="app-management.html" class="topbar-link"><span class="link-emoji">📦</span><span class="link-text">App Mgmt</span></a>
+
+  </div>
+</nav>
+
+<header class="page-header">
+  <div class="breadcrumb"><a href="index.html">Home</a><span class="breadcrumb-sep">/</span>Endpoint Security</div>
+  <div class="page-eyebrow">// Security & Compliance Engine</div>
+  <h1 class="page-title">Endpoint <span>Security</span><br>&amp; Compliance</h1>
+  <p class="page-subtitle">How Intune enforces security posture, evaluates device compliance, integrates with Microsoft Defender for Endpoint, and feeds device health signals into the Zero Trust architecture.</p>
+  <div class="stat-strip">
+    <div class="stat-item"><span class="stat-value">MDE</span><span class="stat-label">Defender Integration</span></div>
+    <div class="stat-item"><span class="stat-value">ZTA</span><span class="stat-label">Zero Trust Ready</span></div>
+    <div class="stat-item"><span class="stat-value">24/7</span><span class="stat-label">Continuous Evaluation</span></div>
+  </div>
+</header>
+<nav class="tab-nav">
+  <button class="tab-btn" onclick="showTab('s-overview',this)">Overview</button>
+  <button class="tab-btn" onclick="showTab('s-compliance',this)">Compliance Engine</button>
+  <button class="tab-btn" onclick="showTab('s-defender',this)">Defender Integration</button>
+  <button class="tab-btn" onclick="showTab('s-policies',this)">Security Policies</button>
+  <button class="tab-btn" onclick="showTab('s-zerotrust',this)">Zero Trust</button>
+</nav>
+<main>
+
+<div class="tab-section" id="s-overview">
+  <div class="section-label">Architecture</div>
+  <div class="section-heading">Security Stack Overview</div>
+  <p class="section-body">Intune's security stack combines compliance evaluation, attack surface reduction, encryption enforcement, and real-time threat signals from Defender for Endpoint.</p>
+  <div class="card-grid">
+    <div class="card"><div class="card-emoji">✅</div><div class="card-title">Compliance Policies</div><div class="card-text">Define the minimum security bar — OS version, encryption, PIN, jailbreak. Device gets a Compliant/Non-Compliant state used by Conditional Access to grant or deny resource access.<br><a href="azure-ad.html" class="xlink">CA uses compliance state</a></div></div>
+    <div class="card"><div class="card-emoji">🛡️</div><div class="card-title">Endpoint Security Policies</div><div class="card-text">Attack Surface Reduction rules, antivirus settings, disk encryption (BitLocker/FileVault), Windows Firewall rules, and account protection — all pushed via Intune MDM.<br><a href="policy-management.html" class="xlink">Policy priority order</a></div></div>
+    <div class="card"><div class="card-emoji">🔍</div><div class="card-title">Microsoft Defender for Endpoint</div><div class="card-text">MDE risk score feeds into Intune compliance evaluation. If a device gets malware, it instantly becomes non-compliant and is blocked from all corporate resources.<br><a href="#" onclick="showTab('s-defender',document.querySelectorAll('.tab-btn')[2]);return false;" class="xlink">MDE integration details</a></div></div>
+    <div class="card"><div class="card-emoji">🔐</div><div class="card-title">Encryption Enforcement</div><div class="card-text">BitLocker (Windows), FileVault (macOS), and device storage encryption enforced via compliance. Recovery keys escrowed to Intune/Azure AD for IT-managed recovery.</div></div>
+    <div class="card"><div class="card-emoji">🎯</div><div class="card-title">Attack Surface Reduction</div><div class="card-text">ASR rules block common attack vectors: Office macros, credential theft from LSASS, executable content from email, untrusted USB devices. Pushed via Intune to all enrolled Windows endpoints.</div></div>
+    <div class="card"><div class="card-emoji">👮</div><div class="card-title">Security Baselines</div><div class="card-text">Microsoft-curated hardening templates for Windows, Edge, and Defender. Pre-configured with CIS/NIST-aligned settings. One-click deploy to bring all endpoints to a hardened baseline.</div></div>
+  </div>
+</div>
+
+<div class="tab-section" id="s-compliance">
+  <div class="section-label">Compliance Engine</div>
+  <div class="section-heading">How Compliance Evaluation Works</div>
+  <p class="section-body">Device health is reported to Intune → evaluated against your compliance policy → state written to Entra ID device object → Conditional Access reads state during token issuance.</p>
+
+  <div class="info-box">
+    <div class="info-box-title">⚙️ Compliance Policy — Settings Matrix</div>
+    <table class="data-table">
+      <thead><tr><th>Setting</th><th>Windows</th><th>iOS</th><th>Android</th><th>macOS</th></tr></thead>
+      <tbody>
+        <tr><td>Min OS Version</td><td><span class="pill pill-green">✅</span></td><td><span class="pill pill-green">✅</span></td><td><span class="pill pill-green">✅</span></td><td><span class="pill pill-green">✅</span></td></tr>
+        <tr><td>Encryption Required</td><td>BitLocker</td><td>Default on</td><td><span class="pill pill-green">✅</span></td><td>FileVault</td></tr>
+        <tr><td>PIN / Password Required</td><td><span class="pill pill-green">✅</span></td><td><span class="pill pill-green">✅</span></td><td><span class="pill pill-green">✅</span></td><td><span class="pill pill-green">✅</span></td></tr>
+        <tr><td>Jailbreak / Root Detection</td><td>N/A</td><td><span class="pill pill-green">✅</span></td><td><span class="pill pill-green">✅</span></td><td>N/A</td></tr>
+        <tr><td>Defender Threat Level</td><td><span class="pill pill-green">✅ MDE</span></td><td><span class="pill pill-green">✅ MDE</span></td><td><span class="pill pill-green">✅ MDE</span></td><td><span class="pill pill-green">✅ MDE</span></td></tr>
+        <tr><td>Secure Boot Enabled</td><td><span class="pill pill-green">✅</span></td><td>N/A</td><td>N/A</td><td>N/A</td></tr>
+        <tr><td>Firewall Enabled</td><td><span class="pill pill-green">✅</span></td><td>N/A</td><td>N/A</td><td><span class="pill pill-green">✅</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="section-heading" style="margin-top:32px;">Non-Compliance Actions</div>
+  <div class="card-grid cols-2">
+    <div class="card"><div class="card-emoji">⏱️</div><div class="card-title">Grace Period</div><div class="card-text">Configure a grace period (e.g. 3 days). Device shows as non-compliant but isn't blocked yet. User gets notification to remediate. After grace period, blocking begins.</div></div>
+    <div class="card"><div class="card-emoji">📧</div><div class="card-title">Email Notification</div><div class="card-text">Intune automatically emails the user and/or IT admin when a device becomes non-compliant. Custom email templates with branding supported.</div></div>
+    <div class="card"><div class="card-emoji">🔒</div><div class="card-title">Resource Block via CA</div><div class="card-text">Conditional Access checks compliance flag. Non-compliant device token is denied. User sees "You can't access this right now" in Outlook, Teams, SharePoint.<br><a href="azure-ad.html" class="xlink">Conditional Access scenarios</a></div></div>
+    <div class="card"><div class="card-emoji">🗑️</div><div class="card-title">Retire / Wipe</div><div class="card-text">As a final action after extended non-compliance, IT can trigger a remote retire (remove corporate data) or full wipe automatically.</div></div>
+  </div>
+</div>
+
+<div class="tab-section" id="s-defender">
+  <div class="section-label">MDE Integration</div>
+  <div class="section-heading">Microsoft Defender for Endpoint Signal Flow</div>
+  <p class="section-body">MDE provides real-time threat signals that Intune consumes to dynamically update device compliance — creating a live security feedback loop.</p>
+  <div class="info-box">
+    <div class="info-box-title">🔄 How the Signal Loop Works</div>
+    <div class="flow-steps">
+      <div class="flow-step"><div class="flow-step-num">1</div><div class="flow-step-content"><div class="flow-step-title">MDE Sensor Detects Threat</div><div class="flow-step-text">MDE sensor (built into Windows 10/11) detects suspicious activity, malware, or active attack on the endpoint.</div></div></div>
+      <div class="flow-step"><div class="flow-step-num">2</div><div class="flow-step-content"><div class="flow-step-title">Risk Score Assigned</div><div class="flow-step-text">MDE assigns a Machine Risk Score: Clear / Low / Medium / High based on the severity and confidence of the detection.</div></div></div>
+      <div class="flow-step"><div class="flow-step-num">3</div><div class="flow-step-content"><div class="flow-step-title">Intune Compliance Evaluated</div><div class="flow-step-text">Intune compliance policy checks: "Is MDE risk score ≤ configured threshold?" If MDE flags High risk and policy requires Medium or below → non-compliant.</div></div></div>
+      <div class="flow-step"><div class="flow-step-num">4</div><div class="flow-step-content"><div class="flow-step-title">CA Blocks Access</div><div class="flow-step-text">Conditional Access sees non-compliant flag → blocks all M365 access. User blocked until MDE clears the threat and risk score drops.<br><a href="azure-ad.html" class="xlink">CA token flow</a></div></div></div>
+    </div>
+  </div>
+  <div class="card-grid">
+    <div class="card" style="border-left:3px solid #ff4444"><div class="card-emoji">🔴</div><div class="card-title">Critical — Ransomware</div><div class="card-text">MDE detects file encryption activity. Risk → High. Intune marks non-compliant. CA blocks all M365 access within minutes. IT alerted via Defender portal.</div></div>
+    <div class="card" style="border-left:3px solid #ff6b35"><div class="card-emoji">🟠</div><div class="card-title">High — Credential Harvesting</div><div class="card-text">LSASS memory dump detected. ASR rule fires. MDE risk → High. Device quarantined from corporate network via CA block.</div></div>
+    <div class="card" style="border-left:3px solid #f0c040"><div class="card-emoji">🟡</div><div class="card-title">Medium — Suspicious PowerShell</div><div class="card-text">Obfuscated PowerShell executed. MDE risk → Medium. If policy requires Low or below, device becomes non-compliant. User gets email notification.</div></div>
+    <div class="card" style="border-left:3px solid #00ffc8"><div class="card-emoji">🟢</div><div class="card-title">Low — PUA Detected</div><div class="card-text">Potentially Unwanted Application found. MDE risk → Low. Most policies allow Low risk. Alert sent but device stays compliant. IT can investigate from Defender portal.</div></div>
+  </div>
+</div>
+
+<div class="tab-section" id="s-policies">
+  <div class="section-label">Policy Reference</div>
+  <div class="section-heading">Endpoint Security Policy Types</div>
+  <p class="section-body">Intune's Endpoint Security node contains focused policy types for hardening endpoints beyond basic configuration profiles.</p>
+  <table class="data-table">
+    <thead><tr><th>Policy Type</th><th>What It Controls</th><th>Key Settings</th><th>Platforms</th></tr></thead>
+    <tbody>
+      <tr><td>Antivirus</td><td>Microsoft Defender AV configuration</td><td>Real-time protection, cloud-delivered protection, scan schedules, exclusions</td><td>Windows, macOS</td></tr>
+      <tr><td>Disk Encryption</td><td>BitLocker / FileVault enforcement</td><td>AES-256, recovery key escrow, pre-boot auth, startup PIN</td><td>Windows, macOS</td></tr>
+      <tr><td>Firewall</td><td>Windows Defender Firewall rules</td><td>Domain/Private/Public profiles, inbound/outbound rules, port blocking</td><td>Windows, macOS</td></tr>
+      <tr><td>EDR (Endpoint Detection & Response)</td><td>MDE onboarding and config</td><td>Sample sharing, telemetry frequency, onboarding blob deployment</td><td>Win, macOS, Linux, iOS, Android</td></tr>
+      <tr><td>Attack Surface Reduction</td><td>ASR rules to block attack vectors</td><td>Block Office macros, LSASS protection, untrusted executables, USB restrictions</td><td>Windows</td></tr>
+      <tr><td>Account Protection</td><td>Windows Hello, credential guard</td><td>WHfB, Credential Guard, Local Security Authority protection</td><td>Windows</td></tr>
+      <tr><td>Security Baselines</td><td>Pre-built hardening templates</td><td>200+ settings — Windows MDM, Edge, Defender baselines</td><td>Windows</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="tab-section" id="s-zerotrust">
+  <div class="section-label">Zero Trust</div>
+  <div class="section-heading">Intune's Role in Zero Trust Architecture</div>
+  <p class="section-body">Zero Trust: "Never Trust, Always Verify." Intune contributes the <strong>Device Health Signal</strong> — one of the core pillars in the Microsoft Zero Trust model.</p>
+  <div class="info-box">
+    <div class="info-box-title">🔍 Device Signals Intune Contributes</div>
+    <div class="info-box-body">
+      → Is the device <strong>enrolled and managed</strong>? (Intune)<br>
+      → Is the device <strong>compliant</strong> with security policy? (Intune Compliance)<br>
+      → Does the device have <strong>active threats</strong>? (MDE risk score)<br>
+      → Is the device using a <strong>trusted platform</strong>? (TPM attestation)<br>
+      → Is the <strong>user's identity verified</strong>? (Entra ID MFA)<br><br>
+      All signals combined → Conditional Access makes the access decision.
+      <br><a href="azure-ad.html" class="xlink">Conditional Access policy engine</a>
+    </div>
+  </div>
+  <div class="card-grid cols-3">
+    <div class="card"><div class="card-emoji">🔑</div><div class="card-title">Identity Pillar</div><div class="card-text">Entra ID handles identity. MFA, passwordless (FIDO2/WHfB), Identity Protection risk signals. Intune ensures device identity is registered and compliant.</div></div>
+    <div class="card"><div class="card-emoji">💻</div><div class="card-title">Device Pillar</div><div class="card-text">Intune owns this pillar. Enrollment, compliance, configuration enforcement, health attestation. Device health certificate from TPM proves boot integrity.</div></div>
+    <div class="card"><div class="card-emoji">📦</div><div class="card-title">Application Pillar</div><div class="card-text">App Protection Policies (MAM) protect data inside apps. Defender for Cloud Apps monitors SaaS usage and blocks risky app behaviours.<br><a href="app-management.html" class="xlink">App protection policies</a></div></div>
+    <div class="card"><div class="card-emoji">📊</div><div class="card-title">Data Pillar</div><div class="card-text">Microsoft Purview classifies and labels data. Intune MAM policies enforce data handling rules — no save to personal storage, no copy to personal apps.</div></div>
+    <div class="card"><div class="card-emoji">🌐</div><div class="card-title">Network Pillar</div><div class="card-text">Per-app VPN and Always-On VPN pushed via Intune. Microsoft Tunnel provides secure access to internal resources from managed mobile devices.<br><a href="microsoft-tunnel-vpn.html" class="xlink">Microsoft Tunnel & VPN</a></div></div>
+    <div class="card"><div class="card-emoji">🔭</div><div class="card-title">Visibility & Analytics</div><div class="card-text">Microsoft Sentinel (SIEM), Defender XDR, and Intune reports. Endpoint Analytics tracks device health trends. Log Analytics for deep investigation.<br><a href="graph-api-automation.html" class="xlink">Reporting via Graph API</a></div></div>
+  </div>
+</div>
+
+</main>
+
+<footer class="page-footer">
+  <a href="mdm-vs-byod.html" class="footer-prev"><span class="footer-arrow">←</span><div><span class="footer-nav-label">Previous</span><span class="footer-nav-title">⚖️ MDM vs BYOD</span></div></a>
+  <span style="font-size:11px;color:var(--text3);">Intune Deep Dive Series — 10 Modules</span>
+  <a href="azure-ad.html" class="footer-next"><span class="footer-arrow">→</span><div><span class="footer-nav-label">Next</span><span class="footer-nav-title">🔐 Azure AD & CA</span></div></a>
+</footer>
+<script>
+// ── Tab switching with history ──
+function showTab(id, btn) {
+  document.querySelectorAll('.tab-section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  const el = document.getElementById(id);
+  if (el) el.classList.add('active');
+  if (btn) btn.classList.add('active');
+  // smooth scroll to tab content on mobile
+  if (window.innerWidth < 640) {
+    setTimeout(() => el && el.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+  }
+}
+
+// ── Topbar scroll shadow ──
+window.addEventListener('scroll', () => {
+  const tb = document.querySelector('.topbar');
+  if (tb) tb.style.boxShadow = scrollY > 10 ? '0 4px 24px rgba(0,0,0,0.5)' : '';
+}, { passive: true });
+
+// ── Activate first tab on load ──
+document.addEventListener('DOMContentLoaded', () => {
+  const firstBtn = document.querySelector('.tab-btn');
+  const firstSec = document.querySelector('.tab-section');
+  if (firstBtn && !document.querySelector('.tab-btn.active')) {
+    firstBtn.classList.add('active');
+  }
+  if (firstSec && !document.querySelector('.tab-section.active')) {
+    firstSec.classList.add('active');
+  }
+});
+</script>
+</body>
+</html>
