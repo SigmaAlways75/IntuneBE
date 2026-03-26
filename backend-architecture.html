@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<meta name="description" content="Intune Deep Dive — Backend Architecture">
+<title>Backend Architecture · Intune Deep Dive</title>
+<style>
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
+
+/* ── Reset & Base ── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 16px; scroll-behavior: smooth; scroll-padding-top: 104px; }
+body {
+  font-family: 'Inter', system-ui, sans-serif;
+  background: #0d1117;
+  color: #c9d1d9;
+  line-height: 1.6;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+code { font-family: 'JetBrains Mono', monospace; font-size: 0.88em; background: #1c2430; border: 1px solid #30363d; border-radius: 4px; padding: 2px 6px; color: #79c0ff; }
+pre { font-family: 'JetBrains Mono', monospace; }
+
+/* ── Accent ── */
+:root { --accent: #3b82f6; --accent-bg: rgba(59,130,246,0.1); --accent-border: rgba(59,130,246,0.3); }
+
+/* ── LAYOUT ── */
+.layout {
+  display: grid;
+  grid-template-columns: 260px minmax(0, 1fr) 220px;
+  grid-template-rows: 52px 1fr;
+  grid-template-areas: "top top top" "side content toc";
+  min-height: 100vh;
+}
+
+/* ── TOPBAR ── */
+.topbar {
+  grid-area: top;
+  position: sticky; top: 0; z-index: 100;
+  display: flex; align-items: center; padding: 0 20px; gap: 12px;
+  background: rgba(13,17,23,0.95);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid #21262d;
+  height: 52px;
+}
+.tb-logo {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 14px; font-weight: 700; color: #f0f6ff;
+  text-decoration: none; flex-shrink: 0;
+  padding-right: 16px; border-right: 1px solid #21262d;
+  margin-right: 4px;
+}
+.tb-logo-icon {
+  width: 26px; height: 26px;
+  background: var(--accent); border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; flex-shrink: 0;
+}
+.tb-crumb { display: flex; align-items: center; gap: 6px; font-size: 13px; color: #6e7681; }
+.tb-crumb a { color: var(--accent); text-decoration: none; }
+.tb-crumb a:hover { text-decoration: underline; }
+.tb-crumb-sep { color: #30363d; }
+.tb-spacer { flex: 1; }
+.tb-tag {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px; color: var(--accent);
+  background: var(--accent-bg); border: 1px solid var(--accent-border);
+  padding: 3px 10px; border-radius: 20px; letter-spacing: 0.03em;
+}
+.tb-ham {
+  display: none; background: none; border: none; cursor: pointer;
+  flex-direction: column; align-items: center; justify-content: center;
+  gap: 5px; width: 34px; height: 34px; border-radius: 6px; flex-shrink: 0;
+}
+.tb-ham span { display: block; width: 16px; height: 2px; background: #6e7681; border-radius: 2px; transition: 0.2s; }
+
+/* ── SIDEBAR ── */
+.sidebar {
+  grid-area: side;
+  position: sticky; top: 52px;
+  height: calc(100vh - 52px);
+  overflow-y: auto; overflow-x: hidden;
+  background: #0d1117;
+  border-right: 1px solid #21262d;
+  display: flex; flex-direction: column;
+  scrollbar-width: thin; scrollbar-color: #21262d transparent;
+}
+.sb-section { padding: 16px 12px 0; }
+.sb-section-label {
+  font-size: 11px; font-weight: 600;
+  color: #6e7681; text-transform: uppercase; letter-spacing: 0.06em;
+  padding: 0 8px; margin-bottom: 4px;
+}
+.sb-link {
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 10px; border-radius: 6px;
+  font-size: 13px; font-weight: 500;
+  color: #8b949e; text-decoration: none;
+  transition: all 0.15s; border: 1px solid transparent;
+  margin-bottom: 1px;
+}
+.sb-link:hover { color: #c9d1d9; background: #161b22; text-decoration: none; }
+.sb-link.active {
+  color: var(--accent); background: var(--accent-bg);
+  border-color: var(--accent-border); font-weight: 600;
+}
+.sb-link-icon { width: 18px; flex-shrink: 0; font-size: 14px; text-align: center; }
+.sb-link-badge {
+  margin-left: auto; font-size: 10px; font-weight: 600;
+  color: #6e7681; background: #161b22; border: 1px solid #21262d;
+  padding: 1px 6px; border-radius: 10px; flex-shrink: 0;
+}
+.sb-link.active .sb-link-badge { color: var(--accent); background: var(--accent-bg); border-color: var(--accent-border); }
+.sb-divider { height: 1px; background: #21262d; margin: 10px 12px; }
+.sb-footer { padding: 12px 16px; font-size: 11px; color: #484f58; margin-top: auto; border-top: 1px solid #21262d; }
+
+/* ── CONTENT ── */
+.content { grid-area: content; min-width: 0; }
+
+/* ── TOC ── */
+.toc-panel {
+  grid-area: toc;
+  position: sticky; top: 52px;
+  height: calc(100vh - 52px);
+  overflow-y: auto; padding: 20px 16px;
+  background: #0d1117; border-left: 1px solid #21262d;
+  scrollbar-width: thin; scrollbar-color: #21262d transparent;
+}
+.toc-panel-title {
+  font-size: 11px; font-weight: 700; color: #6e7681;
+  text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 12px;
+}
+.toc-panel a {
+  display: block; font-size: 12px; color: #6e7681;
+  padding: 4px 0 4px 10px;
+  border-left: 2px solid transparent;
+  transition: all 0.15s; line-height: 1.4; margin-bottom: 3px;
+  text-decoration: none;
+}
+.toc-panel a:hover { color: var(--accent); border-left-color: var(--accent-border); text-decoration: none; }
+.toc-panel a.active { color: var(--accent); border-left-color: var(--accent); }
+.toc-panel a.toc-l2 { padding-left: 20px; font-size: 11px; }
+
+/* ═══════════════════════════════════════════════════════
+   DOCS CONTENT — PROPER STRUCTURED LAYOUT
+   ═══════════════════════════════════════════════════════ */
+
+/* ── Page Header ── */
+.page-header {
+  padding: 48px 48px 32px;
+  border-bottom: 1px solid #21262d;
+  background: linear-gradient(to bottom, #0d1117, #0d1117);
+  position: relative; overflow: hidden;
+}
+.page-header::after {
+  content: '';
+  position: absolute; bottom: 0; left: 0; right: 0; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--accent-border), transparent);
+}
+.page-header-eyebrow {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px; color: var(--accent);
+  text-transform: uppercase; letter-spacing: 0.12em;
+  margin-bottom: 14px;
+}
+.page-header-title {
+  font-size: clamp(22px, 3vw, 38px);
+  font-weight: 700; color: #f0f6ff;
+  line-height: 1.2; letter-spacing: -0.02em; margin-bottom: 12px;
+}
+.page-header-desc {
+  font-size: 14px; color: #8b949e; line-height: 1.75;
+  max-width: 640px; margin-bottom: 24px;
+}
+.page-header-meta {
+  display: flex; flex-wrap: wrap; gap: 24px; padding-top: 8px;
+}
+.meta-item { display: flex; align-items: center; gap: 6px; }
+.meta-label { font-size: 11px; color: #484f58; text-transform: uppercase; letter-spacing: 0.06em; }
+.meta-value { font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 600; color: var(--accent); }
+
+/* ── Doc Body ── */
+.doc-body { padding: 0; }
+
+/* ── Doc Section ── */
+.doc-section {
+  padding: 36px 48px 32px;
+  border-bottom: 1px solid #21262d;
+}
+.doc-section:last-child { border-bottom: none; }
+
+/* Section title row */
+.doc-section-header {
+  display: flex; align-items: flex-start; gap: 0;
+  margin-bottom: 20px; padding-bottom: 14px;
+  border-bottom: 1px solid #21262d;
+}
+.doc-section-number {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px; font-weight: 700;
+  color: var(--accent); opacity: 0.6;
+  margin-right: 12px; margin-top: 4px;
+  min-width: 28px; flex-shrink: 0;
+}
+.doc-section-titles { flex: 1; }
+.doc-section-tag {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px; color: var(--accent);
+  text-transform: uppercase; letter-spacing: 0.15em;
+  margin-bottom: 4px; opacity: 0.75;
+}
+.doc-section-title {
+  font-size: 19px; font-weight: 700;
+  color: #f0f6ff; letter-spacing: -0.01em; line-height: 1.25;
+}
+.doc-section-desc {
+  font-size: 13px; color: #8b949e; line-height: 1.8;
+  max-width: 700px; margin-bottom: 24px; margin-top: 12px;
+}
+
+/* ── Typography inside sections ── */
+.doc-h3 {
+  font-size: 15px; font-weight: 700; color: #e6edf3;
+  margin: 28px 0 12px; padding-bottom: 8px;
+  border-bottom: 1px solid #21262d;
+}
+.doc-h4 {
+  font-size: 13px; font-weight: 600; color: #c9d1d9;
+  margin: 20px 0 8px;
+}
+.doc-p {
+  font-size: 13px; color: #8b949e; line-height: 1.8; margin-bottom: 16px;
+}
+.doc-p strong { color: #c9d1d9; }
+
+/* ── Definition / Property List ── */
+.prop-list { margin-bottom: 20px; }
+.prop-row {
+  display: grid; grid-template-columns: 180px 1fr;
+  gap: 0; border-bottom: 1px solid #21262d;
+  padding: 10px 0;
+}
+.prop-row:last-child { border-bottom: none; }
+.prop-key {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px; font-weight: 600; color: var(--accent);
+  padding-right: 16px; padding-top: 1px;
+}
+.prop-val { font-size: 13px; color: #c9d1d9; line-height: 1.6; }
+.prop-val span.dim { color: #6e7681; font-size: 12px; }
+
+/* ── Callout Boxes ── */
+.callout {
+  display: flex; gap: 14px;
+  border: 1px solid #21262d; border-radius: 8px;
+  padding: 16px 18px; margin-bottom: 16px;
+  background: #161b22;
+}
+.callout-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+.callout-body { flex: 1; min-width: 0; }
+.callout-title { font-size: 13px; font-weight: 700; margin-bottom: 6px; }
+.callout-text { font-size: 12.5px; color: #8b949e; line-height: 1.8; }
+.callout-text code { font-size: 11px; }
+.callout-text a { color: var(--accent); }
+.callout.info { border-left: 3px solid var(--accent); }
+.callout.info .callout-title { color: var(--accent); }
+.callout.warn { border-left: 3px solid #e3b341; background: rgba(227,179,65,0.05); }
+.callout.warn .callout-title { color: #e3b341; }
+.callout.danger { border-left: 3px solid #f85149; background: rgba(248,81,73,0.05); }
+.callout.danger .callout-title { color: #f85149; }
+.callout.ok { border-left: 3px solid #3fb950; background: rgba(63,185,80,0.05); }
+.callout.ok .callout-title { color: #3fb950; }
+
+/* ── Numbered Steps ── */
+.steps { margin-bottom: 20px; }
+.step {
+  display: flex; gap: 16px;
+  padding: 16px 0; border-bottom: 1px solid #21262d;
+  align-items: flex-start;
+}
+.step:last-child { border-bottom: none; }
+.step-num {
+  width: 28px; height: 28px; flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--accent-bg); border: 1px solid var(--accent-border);
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700;
+  color: var(--accent);
+}
+.step-body { flex: 1; padding-top: 2px; }
+.step-title { font-size: 13px; font-weight: 700; color: #e6edf3; margin-bottom: 5px; }
+.step-text { font-size: 12.5px; color: #8b949e; line-height: 1.75; }
+.step-text code { font-size: 11px; }
+.step-text a { color: var(--accent); }
+
+/* ── Comparison Table (two column) ── */
+.cmp-table {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 1px;
+  background: #21262d; border: 1px solid #21262d; border-radius: 8px;
+  overflow: hidden; margin-bottom: 20px;
+}
+.cmp-head {
+  background: #161b22; padding: 14px 18px;
+  border-bottom: 1px solid #21262d;
+}
+.cmp-head-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 4px; }
+.cmp-head-title { font-size: 16px; font-weight: 700; color: #f0f6ff; }
+.cmp-head-sub { font-size: 12px; color: #6e7681; margin-top: 3px; }
+.cmp-cell { background: #0d1117; padding: 12px 18px; border-bottom: 1px solid #21262d; }
+.cmp-cell:last-child, .cmp-cell:nth-last-child(2):nth-child(odd) { border-bottom: none; }
+.cmp-cell-key { font-size: 10px; font-weight: 600; color: #6e7681; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 3px; }
+.cmp-cell-val { font-size: 12.5px; color: #c9d1d9; line-height: 1.5; }
+
+/* ── Feature Table ── */
+.feature-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 12.5px; }
+.feature-table th {
+  text-align: left; padding: 10px 14px;
+  font-size: 11px; font-weight: 600; color: #6e7681;
+  text-transform: uppercase; letter-spacing: 0.06em;
+  background: #161b22; border-bottom: 2px solid #21262d;
+}
+.feature-table td {
+  padding: 11px 14px; border-bottom: 1px solid #21262d;
+  color: #c9d1d9; vertical-align: top; line-height: 1.5;
+}
+.feature-table tr:last-child td { border-bottom: none; }
+.feature-table tbody tr:hover td { background: rgba(255,255,255,0.02); }
+.feature-table td:first-child { font-weight: 600; color: #e6edf3; }
+
+/* ── Card Grid ── */
+.card-grid { display: grid; gap: 12px; margin-bottom: 20px; }
+.cg-2 { grid-template-columns: 1fr 1fr; }
+.cg-3 { grid-template-columns: repeat(3, 1fr); }
+.cg-auto { grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
+
+.doc-card {
+  background: #0d1117; border: 1px solid #21262d; border-radius: 8px;
+  padding: 18px; transition: border-color 0.15s, transform 0.15s;
+  position: relative; overflow: hidden;
+}
+.doc-card:hover { border-color: var(--accent-border); transform: translateY(-1px); }
+.doc-card-icon { font-size: 20px; margin-bottom: 10px; }
+.doc-card-title { font-size: 13px; font-weight: 700; color: #e6edf3; margin-bottom: 6px; }
+.doc-card-text { font-size: 12px; color: #8b949e; line-height: 1.7; }
+.doc-card-link { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 600; color: var(--accent); margin-top: 10px; }
+
+/* ── Code Block ── */
+.code-block {
+  background: #010409; border: 1px solid #21262d; border-radius: 8px;
+  overflow: hidden; margin-bottom: 16px;
+}
+.code-block-header {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 14px; background: #161b22;
+  border-bottom: 1px solid #21262d;
+}
+.code-dots { display: flex; gap: 5px; }
+.code-dot { width: 8px; height: 8px; border-radius: 50%; }
+.code-dot-r { background: #ff5f57; } .code-dot-y { background: #febc2e; } .code-dot-g { background: #28c840; }
+.code-block-label { font-size: 11px; color: #6e7681; font-family: 'JetBrains Mono', monospace; margin-left: 4px; }
+.code-block-body { padding: 16px 18px; font-size: 12px; line-height: 1.75; overflow-x: auto; color: #8b949e; }
+.ck { color: #79c0ff; } .cv { color: #56d364; } .cs { color: #e3b341; } .cc { color: #484f58; } .cp { color: #f78166; }
+
+/* ── Badge / Pill ── */
+.badge { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; border: 1px solid; }
+.badge-green { color: #3fb950; border-color: rgba(63,185,80,.3); background: rgba(63,185,80,.08); }
+.badge-red   { color: #f85149; border-color: rgba(248,81,73,.3); background: rgba(248,81,73,.08); }
+.badge-yellow{ color: #e3b341; border-color: rgba(227,179,65,.3); background: rgba(227,179,65,.08); }
+.badge-blue  { color: var(--accent); border-color: var(--accent-border); background: var(--accent-bg); }
+.badge-gray  { color: #6e7681; border-color: #21262d; background: #161b22; }
+
+/* ── Xref ── */
+.xref {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 11px; font-weight: 600; color: var(--accent);
+  background: var(--accent-bg); border: 1px solid var(--accent-border);
+  padding: 2px 8px; border-radius: 4px; transition: all 0.15s;
+  text-decoration: none; white-space: nowrap;
+}
+.xref::before { content: '→ '; }
+.xref:hover { background: var(--accent); color: #000; text-decoration: none; }
+
+/* ── Page Footer ── */
+.page-footer {
+  padding: 28px 48px;
+  border-top: 1px solid #21262d;
+  display: flex; align-items: center; justify-content: space-between;
+  flex-wrap: wrap; gap: 14px; background: #0d1117;
+}
+.foot-nav {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 16px; border: 1px solid #21262d; border-radius: 8px;
+  font-size: 13px; color: #8b949e; transition: all 0.15s;
+  text-decoration: none; min-width: 140px;
+}
+.foot-nav:hover { border-color: var(--accent-border); color: var(--accent); text-decoration: none; }
+.foot-nav.foot-next { flex-direction: row-reverse; text-align: right; }
+.foot-nav-arrow { font-size: 16px; color: var(--accent); flex-shrink: 0; }
+.foot-nav-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: #484f58; display: block; margin-bottom: 1px; }
+.foot-nav-title { font-size: 13px; font-weight: 600; color: #e6edf3; }
+.foot-center { font-size: 11px; color: #484f58; }
+
+/* ── Hub Grid (index) ── */
+.hub-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; }
+.hub-card {
+  display: block; background: #0d1117; border: 1px solid #21262d; border-radius: 8px;
+  padding: 18px; text-decoration: none; transition: all 0.15s;
+  border-left: 3px solid var(--c, #21262d);
+}
+.hub-card:hover { border-color: var(--c); transform: translateY(-2px); box-shadow: 0 4px 20px rgba(0,0,0,.4); text-decoration: none; }
+.hub-card-icon { font-size: 24px; margin-bottom: 10px; }
+.hub-card-badge { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; color: var(--c); }
+.hub-card-title { font-size: 13px; font-weight: 700; color: #e6edf3; margin-bottom: 6px; }
+.hub-card-desc { font-size: 11.5px; color: #6e7681; line-height: 1.6; }
+.hub-card-cta { font-size: 11px; font-weight: 600; color: var(--c); margin-top: 12px; }
+
+/* ═══════════════════════════════════════════════════
+   TROUBLESHOOTING WIZARD
+   ═══════════════════════════════════════════════════ */
+.wizard-categories { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
+.wiz-cat-btn {
+  background: #0d1117; border: 1px solid #21262d; border-radius: 8px;
+  padding: 16px; cursor: pointer; text-align: left; transition: all 0.15s;
+  display: flex; flex-direction: column; gap: 5px;
+  border-left: 3px solid var(--wc, #21262d);
+}
+.wiz-cat-btn:hover { border-color: var(--wc); background: rgba(255,255,255,0.02); }
+.wiz-cat-icon { font-size: 22px; }
+.wiz-cat-title { font-size: 13px; font-weight: 700; color: #e6edf3; }
+.wiz-cat-sub { font-size: 11px; color: #6e7681; line-height: 1.5; }
+
+/* Dialog */
+.wiz-backdrop {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,0.75); z-index: 500;
+  align-items: flex-start; justify-content: center;
+  padding: 40px 20px; overflow-y: auto;
+  backdrop-filter: blur(4px);
+}
+.wiz-backdrop.open { display: flex; animation: bzFade .18s ease; }
+@keyframes bzFade { from { opacity:0; } to { opacity:1; } }
+
+.wiz-modal {
+  background: #161b22; border: 1px solid #30363d;
+  border-radius: 12px; width: 100%; max-width: 720px;
+  box-shadow: 0 24px 80px rgba(0,0,0,.8);
+  animation: bzSlide .2s ease;
+  flex-shrink: 0;
+}
+@keyframes bzSlide { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:none; } }
+
+.wiz-modal-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 18px 22px 14px; border-bottom: 1px solid #21262d;
+  position: sticky; top: 0; background: #161b22; border-radius: 12px 12px 0 0; z-index: 2;
+}
+.wiz-modal-title { font-size: 16px; font-weight: 700; color: #f0f6ff; }
+.wiz-modal-close {
+  background: none; border: none; cursor: pointer; color: #6e7681;
+  font-size: 18px; width: 32px; height: 32px; border-radius: 6px;
+  display: flex; align-items: center; justify-content: center; transition: all .15s;
+}
+.wiz-modal-close:hover { background: #21262d; color: #c9d1d9; }
+
+/* Scenario picker */
+.wiz-pick { padding: 18px 22px; }
+.wiz-pick-label { font-size: 12px; color: #6e7681; margin-bottom: 14px; }
+.wiz-scenario-list { display: flex; flex-direction: column; gap: 6px; }
+.wiz-sc {
+  display: flex; align-items: center; gap: 12px;
+  background: #0d1117; border: 1px solid #21262d; border-radius: 8px;
+  padding: 13px 16px; cursor: pointer; transition: all .15s;
+  text-align: left;
+}
+.wiz-sc:hover { border-color: var(--accent-border); background: var(--accent-bg); }
+.wiz-sc-icon { font-size: 18px; flex-shrink: 0; }
+.wiz-sc-label { font-size: 13px; font-weight: 600; color: #e6edf3; }
+.wiz-sc-desc { font-size: 11.5px; color: #6e7681; margin-top: 2px; }
+
+/* Guide panel */
+.wiz-guide { padding: 22px; display: none; }
+.wiz-back-btn {
+  background: none; border: none; cursor: pointer; color: var(--accent);
+  font-size: 13px; font-weight: 600; font-family: 'Inter', sans-serif;
+  display: flex; align-items: center; gap: 5px; padding: 0; margin-bottom: 18px;
+  transition: opacity .15s;
+}
+.wiz-back-btn:hover { opacity: .75; }
+
+.g-banner {
+  background: var(--accent-bg); border: 1px solid var(--accent-border);
+  border-radius: 8px; padding: 16px 18px; margin-bottom: 18px;
+}
+.g-banner-tag { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--accent); text-transform: uppercase; letter-spacing: .1em; margin-bottom: 6px; }
+.g-banner-title { font-size: 17px; font-weight: 700; color: #f0f6ff; margin-bottom: 6px; }
+.g-banner-desc { font-size: 12.5px; color: #8b949e; line-height: 1.7; }
+
+.g-block { margin-bottom: 16px; border: 1px solid #21262d; border-radius: 8px; overflow: hidden; }
+.g-block-head {
+  background: #161b22; padding: 10px 16px;
+  display: flex; align-items: center; gap: 8px;
+  font-size: 13px; font-weight: 700; color: #e6edf3;
+  border-bottom: 1px solid #21262d;
+}
+.g-block-body { padding: 14px 16px; background: #0d1117; }
+
+.g-cause-grid { display: flex; flex-wrap: wrap; gap: 6px; }
+.g-cause-tag { font-size: 11px; padding: 3px 10px; border-radius: 20px; font-weight: 600; border: 1px solid; }
+.gt-cause { color: #f85149; border-color: rgba(248,81,73,.35); background: rgba(248,81,73,.08); }
+.gt-where { color: #79c0ff; border-color: rgba(121,192,255,.35); background: rgba(121,192,255,.08); }
+.gt-fix   { color: #3fb950; border-color: rgba(63,185,80,.35); background: rgba(63,185,80,.08); }
+
+.g-steps { padding: 0; list-style: none; }
+.g-step { display: flex; gap: 12px; padding: 12px 0; border-bottom: 1px solid #21262d; }
+.g-step:last-child { border-bottom: none; }
+.g-step-n {
+  width: 24px; height: 24px; flex-shrink: 0; border-radius: 50%;
+  background: var(--accent-bg); border: 1px solid var(--accent-border);
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 700; color: var(--accent);
+  margin-top: 2px;
+}
+.g-step-t { font-size: 12.5px; font-weight: 700; color: #e6edf3; margin-bottom: 4px; }
+.g-step-d { font-size: 12px; color: #8b949e; line-height: 1.75; }
+.g-step-d code { font-size: 11px; }
+.g-step-d a { color: var(--accent); }
+
+/* ═══════════════════════════════════════════════════
+   RESPONSIVE
+   ═══════════════════════════════════════════════════ */
+@media (max-width: 1100px) {
+  .layout { grid-template-columns: 240px 1fr; grid-template-areas: "top top" "side content"; }
+  .toc-panel { display: none; }
+  .cg-3 { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 768px) {
+  .layout { grid-template-columns: 1fr; grid-template-areas: "top" "content"; }
+  .sidebar { display: none; position: fixed; top: 52px; left: 0; z-index: 150; width: 260px; height: calc(100vh - 52px); transform: translateX(-100%); transition: transform .25s ease; border-right: 1px solid #30363d; }
+  .sidebar.open { display: flex; transform: translateX(0); }
+  .tb-ham { display: flex; }
+  .page-header { padding: 32px 20px 24px; }
+  .doc-section { padding: 24px 20px; }
+  .page-footer { padding: 20px; flex-direction: column; }
+  .foot-nav { min-width: 0; width: 100%; }
+  .cmp-table, .cg-2, .cg-3 { grid-template-columns: 1fr; }
+  .hub-grid { grid-template-columns: 1fr 1fr; }
+  .wizard-categories { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 440px) {
+  .hub-grid, .wizard-categories { grid-template-columns: 1fr; }
+}
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #21262d; border-radius: 10px; }
+.mob-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.6); z-index: 140; }
+.mob-overlay.show { display: block; }
+
+:root { --accent:#e879f9; --accent-bg:rgba(232,121,249,0.1); --accent-border:rgba(232,121,249,0.3); }
+</style>
+</head>
+<body>
+<div class="mob-overlay" id="mob-overlay"></div>
+<div class="layout">
+  <header class="topbar">
+    <button class="tb-ham" id="tb-ham"><span></span><span></span><span></span></button>
+    <a href="index.html" class="tb-logo">
+      <span class="tb-logo-icon">🏗️</span>Intune Deep Dive
+    </a>
+    <nav class="tb-crumb">
+      <span class="tb-crumb-sep">/</span>
+      <span style="color:#c9d1d9">Backend Architecture</span>
+    </nav>
+    <div class="tb-spacer"></div>
+    <span class="tb-tag">Core</span>
+  </header>
+  <aside class="sidebar" id="sidebar">
+  <div style="padding:14px 14px 0">
+    <a href="index.html" style="display:flex;align-items:center;gap:8px;text-decoration:none;padding:8px 6px 12px;border-bottom:1px solid #21262d;margin-bottom:4px">
+      <span style="width:26px;height:26px;background:var(--accent);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0">🏗️</span>
+      <span style="font-size:13px;font-weight:700;color:#f0f6ff;line-height:1.2">Intune<br><span style="font-size:10px;font-weight:500;color:#484f58;letter-spacing:.06em;text-transform:uppercase">Deep Dive</span></span>
+    </a>
+  </div>
+  <div class="sb-section"><div class="sb-section-label">Documentation</div><a href="index.html" class="sb-link"><span class="sb-link-icon">🏠</span>Home<span class="sb-link-badge">Hub</span></a><a href="backend-architecture.html" class="sb-link active"><span class="sb-link-icon">🏗️</span>Backend Architecture<span class="sb-link-badge">Core</span></a><a href="mdm-vs-byod.html" class="sb-link"><span class="sb-link-icon">⚖️</span>MDM vs BYOD<span class="sb-link-badge">Enrollment</span></a><a href="endpoint-security.html" class="sb-link"><span class="sb-link-icon">🛡️</span>Endpoint Security<span class="sb-link-badge">Security</span></a><a href="azure-ad.html" class="sb-link"><span class="sb-link-icon">🔐</span>Azure AD & CA<span class="sb-link-badge">Identity</span></a><a href="policy-management.html" class="sb-link"><span class="sb-link-icon">📋</span>Policy Management<span class="sb-link-badge">Config</span></a><a href="windows-autopilot.html" class="sb-link"><span class="sb-link-icon">🚀</span>Autopilot<span class="sb-link-badge">Deploy</span></a><a href="certificates-scep-pkcs.html" class="sb-link"><span class="sb-link-icon">🔑</span>Certificates<span class="sb-link-badge">PKI</span></a><a href="microsoft-tunnel-vpn.html" class="sb-link"><span class="sb-link-icon">🌐</span>Tunnel & VPN<span class="sb-link-badge">Network</span></a><a href="graph-api-automation.html" class="sb-link"><span class="sb-link-icon">⚡</span>Graph API<span class="sb-link-badge">Automate</span></a><a href="app-management.html" class="sb-link"><span class="sb-link-icon">📦</span>App Management<span class="sb-link-badge">Apps</span></a></div><div class="sb-section"><div class="sb-section-label">Tools</div><a href="troubleshooting.html" class="sb-link"><span class="sb-link-icon">🔧</span>Troubleshooter<span class="sb-link-badge">Support</span></a></div><div class="sb-divider"></div>
+  <div class="sb-footer">v5 · 12 Modules · Microsoft Intune</div>
+</aside>
+  <div class="content">
+    <div class="page-header">
+  <div class="page-header-eyebrow">🏗️ Core Architecture</div>
+  <h1 class="page-header-title">Intune Backend Architecture</h1>
+  <p class="page-header-desc">A complete technical map of how Microsoft Intune's cloud backend communicates with Windows, iOS, Android, macOS, and Linux endpoints — covering every protocol, service, agent, channel, and Azure dependency involved in device management.</p>
+  <div class="page-header-meta"><div class="meta-item"><span class="meta-label">Platforms</span><span class="meta-value">Windows · iOS · Android · macOS · Linux</span></div><div class="meta-item"><span class="meta-label">Protocol</span><span class="meta-value">OMA-DM · APNS · FCM · Graph API</span></div><div class="meta-item"><span class="meta-label">Services</span><span class="meta-value">7 Azure backend services</span></div><div class="meta-item"><span class="meta-label">Channels</span><span class="meta-value">MDM · MAM · Graph · VPN</span></div></div>
+</div><section class="doc-section" id="s-overview">
+  <div class="doc-section-header">
+    <span class="doc-section-number">01</span>
+    <div class="doc-section-titles">
+      <div class="doc-section-tag">Architecture</div>
+      <div class="doc-section-title">High-Level Backend Architecture</div>
+    </div>
+  </div>
+  <p class="doc-section-desc">Intune is a cloud-native SaaS service built on Microsoft Azure. Every device management operation flows through a chain of Azure services before reaching the endpoint. Understanding this chain is essential for network planning, firewall rules, and diagnosing connectivity failures.</p>
+  <div class="card-grid cg-auto"><div class="doc-card"><div class="doc-card-icon">☁️</div><div class="doc-card-title">Intune Service (Azure)</div><div class="doc-card-text">The central management plane hosted in Microsoft Azure. Exposes the Microsoft Graph API for all management operations. Stores device objects, policies, app assignments, and compliance state.<a href="graph-api-automation.html" class="doc-card-link">Graph API reference</a></div></div><div class="doc-card"><div class="doc-card-icon">🔐</div><div class="doc-card-title">Microsoft Entra ID</div><div class="doc-card-text">Identity and device registration backbone. Stores device objects with compliance state. Evaluates Conditional Access policies on every token request. Issues OAuth2/OIDC tokens to devices and users.<a href="azure-ad.html" class="doc-card-link">Entra ID & CA deep dive</a></div></div><div class="doc-card"><div class="doc-card-icon">📦</div><div class="doc-card-title">Azure Blob Storage</div><div class="doc-card-text">Stores Win32 app packages (.intunewin), PowerShell scripts, and custom content. Devices download content via time-limited SAS URLs directly from Azure CDN — not through the Intune service itself.</div></div><div class="doc-card"><div class="doc-card-icon">🔔</div><div class="doc-card-title">Push Notification Services</div><div class="doc-card-text">Windows Notification Service (WNS) for Windows, Apple Push Notification Service (APNs) for iOS/macOS, Firebase Cloud Messaging (FCM) for Android. Used to wake devices and prompt them to check in for new policies.</div></div><div class="doc-card"><div class="doc-card-icon">📊</div><div class="doc-card-title">Microsoft Defender for Endpoint</div><div class="doc-card-text">Provides real-time device risk signals (risk score: Clear/Low/Medium/High) consumed by Intune compliance evaluation. MDE-detected threats can instantly flip a device to non-compliant.<a href="endpoint-security.html" class="doc-card-link">MDE integration</a></div></div><div class="doc-card"><div class="doc-card-icon">🌐</div><div class="doc-card-title">Azure CDN</div><div class="doc-card-text">Content delivery network for distributing Win32 app packages and scripts globally. Devices download from the closest CDN edge node. Reduces latency for large app deployments across geographically distributed workforces.</div></div><div class="doc-card"><div class="doc-card-icon">📋</div><div class="doc-card-title">Microsoft Graph API</div><div class="doc-card-text">The unified REST API surface for all Intune operations. Every action in the Intune portal — creating a policy, assigning an app, triggering a remote wipe — is a Graph API call under the hood.<a href="graph-api-automation.html" class="doc-card-link">Key endpoints</a></div></div></div><div class="callout info"><div class="callout-icon">ℹ️</div><div class="callout-body"><div class="callout-title">Core Architecture Principle</div><div class="callout-text">Intune is designed as a <strong>push-pull hybrid</strong> system. Intune uses push channels (WNS, APNs, FCM) to notify devices that changes are waiting. The device then <em>pulls</em> the actual policy payload from the Intune service over an authenticated HTTPS connection. The device always initiates the data transfer — Intune never pushes raw policy data directly.</div></div></div>
+</section><section class="doc-section" id="s-platforms">
+  <div class="doc-section-header">
+    <span class="doc-section-number">02</span>
+    <div class="doc-section-titles">
+      <div class="doc-section-tag">Communication Channels</div>
+      <div class="doc-section-title">Per-Platform MDM Communication</div>
+    </div>
+  </div>
+  <p class="doc-section-desc">Each platform uses a different set of protocols, endpoints, and agents to communicate with Intune. The table below maps each platform to its management channel, push mechanism, check-in frequency, and key endpoints.</p>
+  <table class="feature-table"><thead><tr><th>Platform</th><th>MDM Protocol</th><th>Push Channel</th><th>Default Check-in</th><th>Key Intune Endpoint</th><th>Agent / Component</th></tr></thead><tbody><tr><td>Windows 10/11</td><td>OMA-DM (MDM CSP)</td><td>WNS (Windows Notification Service)</td><td>Every 8 hours</td><td><code>*.manage.microsoft.com</code></td><td>Windows MDM client (built into OS) + Intune Management Extension (IME) for Win32/scripts</td></tr><tr><td>iOS / iPadOS</td><td>Apple MDM Protocol</td><td>APNs (Apple Push Notification Service)</td><td>Every 8 hours</td><td><code>*.manage.microsoft.com</code> + <code>gateway.push.apple.com:2197</code></td><td>MDM profile installed during enrollment — no separate agent</td></tr><tr><td>macOS</td><td>Apple MDM Protocol</td><td>APNs</td><td>Every 8 hours</td><td><code>*.manage.microsoft.com</code> + APNs</td><td>MDM profile + optional Microsoft AutoUpdate agent</td></tr><tr><td>Android Enterprise</td><td>Android EMM API (Google)</td><td>FCM (Firebase Cloud Messaging)</td><td>Every 8 hours</td><td><code>*.manage.microsoft.com</code> + <code>fcm.googleapis.com</code></td><td>Android Device Policy (Google-issued) in Work Profile or Fully Managed</td></tr><tr><td>Android AOSP</td><td>Microsoft Intune App</td><td>Microsoft push (no GMS)</td><td>Every 8 hours</td><td><code>*.manage.microsoft.com</code></td><td>Microsoft Intune app (no Google dependency — for AOSP/GMS-free devices)</td></tr><tr><td>Linux (Ubuntu)</td><td>Microsoft Intune for Linux</td><td>No push — polling only</td><td>Every 8 hours (polling)</td><td><code>*.manage.microsoft.com</code></td><td>Microsoft Intune agent for Linux (<code>microsoft-intune</code> package)</td></tr></tbody></table><div class="callout warn"><div class="callout-icon">⚠️</div><div class="callout-body"><div class="callout-title">Network Planning Note</div><div class="callout-text">All device-to-Intune communication is outbound HTTPS (port 443) from the device. No inbound connections from Intune to devices are required. However, push notification services (WNS, APNs, FCM) require their own specific endpoints to be reachable. On corporate networks with firewalls or proxies, all of the following domains must be reachable: <code>*.manage.microsoft.com</code>, <code>*.microsoftonline.com</code>, <code>*.microsoft.com</code>, <code>gateway.push.apple.com:2197</code>, <code>*.push.apple.com</code>, <code>fcm.googleapis.com</code>, <code>*.notify.windows.com</code>.</div></div></div>
+</section><section class="doc-section" id="s-windows">
+  <div class="doc-section-header">
+    <span class="doc-section-number">03</span>
+    <div class="doc-section-titles">
+      <div class="doc-section-tag">Windows Deep Dive</div>
+      <div class="doc-section-title">Windows MDM Communication Stack</div>
+    </div>
+  </div>
+  <p class="doc-section-desc">Windows has the richest and most complex Intune integration. The built-in MDM client handles policy delivery, while the Intune Management Extension (IME) handles everything the MDM protocol cannot — Win32 apps, PowerShell scripts, and custom inventory.</p>
+  <h3 class="doc-h3">Windows MDM Client — OMA-DM Protocol</h3><p class="doc-p">The Windows MDM client is built directly into the OS (no agent to install). It communicates with Intune using the OMA-DM protocol over HTTPS. Policies are delivered as Configuration Service Provider (CSP) key-value pairs.</p><table class="feature-table"><thead><tr><th>Component</th><th>Role</th><th>Location</th></tr></thead><tbody><tr><td>MDM Enrollment Service</td><td>Handles initial device enrollment and MDM certificate issuance</td><td>Cloud: <code>enrollment.manage.microsoft.com</code></td></tr><tr><td>MDM Policy Engine</td><td>Applies CSP settings received from Intune to the OS registry and configuration</td><td>OS built-in: <code>Windows\System32\dmclient.dll</code></td></tr><tr><td>WNS Push Client</td><td>Receives push notifications from Intune to trigger immediate check-in</td><td>OS service: Windows Notification Platform</td></tr><tr><td>MDM Diagnostic Tool</td><td>Generates the MDM diagnostic report for troubleshooting</td><td><code>MDMDiagnosticsTool.exe -out C:\Temp</code></td></tr><tr><td>Device Health Attestation</td><td>TPM-backed boot integrity attestation reported to Intune</td><td><code>has.spserv.microsoft.com</code></td></tr></tbody></table><h3 class="doc-h3">Intune Management Extension (IME)</h3><p class="doc-p">The IME is a Windows service that handles capabilities beyond the OMA-DM protocol: Win32 app installation, PowerShell script execution, custom compliance scripts, and proactive remediations.</p><table class="feature-table"><thead><tr><th>IME Component</th><th>Function</th><th>Log Location</th></tr></thead><tbody><tr><td><code>imewp.exe</code></td><td>Main IME worker process — polls Graph API for new assignments every hour</td><td><code>C:\ProgramData\Microsoft\IntuneManagementExtension\Logs\</code></td></tr><tr><td><code>IntuneManagementExtension.log</code></td><td>Full audit log of all app installs, script executions, detection rule evaluations</td><td>Same folder as above — primary troubleshooting file</td></tr><tr><td>Content Staging</td><td>Downloads and decrypts .intunewin packages to local staging directory</td><td><code>C:\Program Files (x86)\Microsoft Intune Management Extension\Content\</code></td></tr><tr><td>Win32App Handler</td><td>Executes install/uninstall commands, evaluates detection rules, reports status</td><td>Part of IME service — results in the IME log</td></tr><tr><td>PowerShell Handler</td><td>Downloads and runs PowerShell scripts as SYSTEM or current user in a restricted execution environment</td><td>Results logged to IME log under <code>[Script]</code> entries</td></tr></tbody></table><h3 class="doc-h3">Windows Enrollment Flow — Technical Sequence</h3><div class="steps"><div class="step"><div class="step-num">1</div><div class="step-body"><div class="step-title">User or Autopilot Triggers Enrollment</div><div class="step-text">Enrollment can be triggered manually (Settings → Accounts → Access Work or School), automatically via Autopilot/OOBE, or silently via Group Policy for Hybrid Join. All paths converge at the MDM enrollment endpoint.</div></div></div><div class="step"><div class="step-num">2</div><div class="step-body"><div class="step-title">MDM Discovery</div><div class="step-text">Device calls <code>enterpriseenrollment.{domain}.com</code> (DNS CNAME) or the Intune enrollment endpoint directly to discover the MDM service URL. This CNAME must be configured in your public DNS for user-driven enrollment.</div></div></div><div class="step"><div class="step-num">3</div><div class="step-body"><div class="step-title">Entra ID Device Registration</div><div class="step-text">Device registers with Entra ID. A device certificate is generated and stored in the TPM (for Entra ID Joined devices). The Primary Refresh Token (PRT) is created and bound to the device.</div></div></div><div class="step"><div class="step-num">4</div><div class="step-body"><div class="step-title">MDM Enrollment Certificate Issued</div><div class="step-text">Intune issues a client certificate to the device — the <code>MS-Organization-Access</code> certificate. This cert is used for mutual TLS authentication on all subsequent MDM check-ins. Stored in the Personal certificate store.</div></div></div><div class="step"><div class="step-num">5</div><div class="step-body"><div class="step-title">Initial Policy Sync</div><div class="step-text">Device performs its first check-in. Intune pushes all assigned configuration profiles, compliance policies, app assignments, and certificate profiles. This is the baseline state of the device.</div></div></div><div class="step"><div class="step-num">6</div><div class="step-body"><div class="step-title">IME Auto-Install</div><div class="step-text">If Win32 apps or PowerShell scripts are assigned, the MDM policy triggers installation of the IME from the Microsoft Store. Once installed, IME begins polling independently for its own assignments.</div></div></div><div class="step"><div class="step-num">7</div><div class="step-body"><div class="step-title">Ongoing Check-in Cycle</div><div class="step-text">Every 8 hours (or immediately when WNS push received), the device checks in. Delta sync — only changed or new policies are delivered. Device reports compliance state, inventory, and app install status back to Intune.</div></div></div></div><div class="callout info"><div class="callout-icon">🔑</div><div class="callout-body"><div class="callout-title">TPM and the MDM Certificate</div><div class="callout-text">On modern Windows devices, the MDM enrollment certificate's private key is generated inside the TPM and is hardware-bound — it cannot be exported or copied to another device. This means the MDM trust is tied to the physical hardware, providing a strong device identity guarantee that Intune and Conditional Access rely on. Run <code>certmgr.msc → Personal → Certificates</code> and look for <code>MS-Organization-Access</code> to see the certificate. <a href="troubleshooting.html" class="xref">Troubleshoot MDM cert issues</a></div></div></div>
+</section><section class="doc-section" id="s-apple">
+  <div class="doc-section-header">
+    <span class="doc-section-number">04</span>
+    <div class="doc-section-titles">
+      <div class="doc-section-tag">Apple Platforms</div>
+      <div class="doc-section-title">iOS, iPadOS & macOS MDM Stack</div>
+    </div>
+  </div>
+  <p class="doc-section-desc">Apple platforms use the Apple MDM Protocol — a vendor-specific HTTPS-based protocol using APNs as the push channel. All management is agentless: the MDM profile installed during enrollment is the management channel.</p>
+  <h3 class="doc-h3">Apple MDM Protocol Flow</h3><div class="steps"><div class="step"><div class="step-num">1</div><div class="step-body"><div class="step-title">MDM Profile Installed</div><div class="step-text">During enrollment (ADE or Company Portal), Intune pushes an MDM profile to the device. This profile contains: the MDM server URL, identity certificate, and management capabilities declared by the server.</div></div></div><div class="step"><div class="step-num">2</div><div class="step-body"><div class="step-title">APNs Channel Established</div><div class="step-text">The device registers its APNs device token with Intune. Intune stores this token. All future management commands are initiated by sending a small push notification to this token via the Apple Push Notification Service.</div></div></div><div class="step"><div class="step-num">3</div><div class="step-body"><div class="step-title">APNs Push Triggers Check-in</div><div class="step-text">When Intune wants to send a command (policy, app install, remote wipe), it sends a push notification to the device via APNs. The notification contains no payload — it simply tells the device to check in.</div></div></div><div class="step"><div class="step-num">4</div><div class="step-body"><div class="step-title">Device Polls for Commands</div><div class="step-text">The device connects to the Intune MDM endpoint (<code>*.manage.microsoft.com</code>) over HTTPS using mutual TLS (device identity certificate + Intune server cert). Intune responds with a queued MDM command.</div></div></div><div class="step"><div class="step-num">5</div><div class="step-body"><div class="step-title">Device Executes Command and Reports</div><div class="step-text">Device executes the command (apply profile, install app, etc.) and sends an Acknowledge or Error response back to Intune. Intune removes the command from the queue and logs the result.</div></div></div><div class="step"><div class="step-num">6</div><div class="step-body"><div class="step-title">Inventory Reporting</div><div class="step-text">Device reports full hardware inventory, installed apps, and OS version at enrollment and periodically. Intune stores this in the device record visible in the portal.</div></div></div></div><div class="callout warn"><div class="callout-icon">⚠️</div><div class="callout-body"><div class="callout-title">APNs Certificate — Critical Operational Requirement</div><div class="callout-text">Intune requires a valid Apple MDM Push Certificate to manage any Apple device. This certificate expires annually and must be renewed using <strong>the same Apple ID</strong> that was used to create it. Renewing with a different Apple ID breaks all existing enrolled devices — they must be re-enrolled. Monitor the certificate expiry in: Intune → Devices → iOS/iPadOS enrollment → Apple MDM Push Certificate. <a href="troubleshooting.html" class="xref">Troubleshoot iOS enrollment failures</a></div></div></div><h3 class="doc-h3">Apple-Specific Management Capabilities</h3><table class="feature-table"><thead><tr><th>Feature</th><th>MDM Command</th><th>Requires Supervision?</th><th>Notes</th></tr></thead><tbody><tr><td>Install App (VPP)</td><td><code>InstallApplication</code></td><td>No (prompt shown) / Yes (silent)</td><td>Silent install requires supervised device (ADE enrolled)</td></tr><tr><td>Remote Wipe</td><td><code>EraseDevice</code></td><td>No</td><td>Full factory reset. Activation Lock must be cleared first for corporate devices.</td></tr><tr><td>Remote Lock</td><td><code>DeviceLock</code></td><td>No</td><td>Locks screen and optionally sets a PIN message</td></tr><tr><td>Configuration Profile Push</td><td><code>InstallProfile</code></td><td>No</td><td>Wi-Fi, VPN, certificates, restrictions — all delivered as signed profiles</td></tr><tr><td>Activation Lock Bypass</td><td><code>ClearActivationLock</code></td><td>Yes (supervised)</td><td>Required to wipe and re-use a supervised device</td></tr><tr><td>Set Recovery Lock (macOS)</td><td><code>SetRecoveryLock</code></td><td>Yes</td><td>Sets a password on Apple Silicon recovery mode — prevents unauthorized wipe</td></tr></tbody></table>
+</section><section class="doc-section" id="s-android">
+  <div class="doc-section-header">
+    <span class="doc-section-number">05</span>
+    <div class="doc-section-titles">
+      <div class="doc-section-tag">Android</div>
+      <div class="doc-section-title">Android Enterprise MDM Stack</div>
+    </div>
+  </div>
+  <p class="doc-section-desc">Android Enterprise uses Google's Enterprise Mobility Management (EMM) API, not a proprietary protocol. Intune communicates with Google's cloud, which in turn manages the device via the Android Device Policy app.</p>
+  <h3 class="doc-h3">Android Enterprise Architecture</h3><div class="card-grid cg-2"><div class="doc-card"><div class="doc-card-icon">🤖</div><div class="doc-card-title">Google EMM API</div><div class="doc-card-text">Intune calls Google's Enterprise API to: push app assignments, apply policies, trigger compliance checks, and manage the device. Intune acts as an EMM provider registered with Google.</div></div><div class="doc-card"><div class="doc-card-icon">📦</div><div class="doc-card-title">Managed Google Play</div><div class="doc-card-text">All Android Enterprise app distribution goes through Managed Google Play. Intune approves apps in the Managed Google Play iframe, then assigns them. Google handles delivery to the device.</div></div><div class="doc-card"><div class="doc-card-icon">🔒</div><div class="doc-card-title">Android Device Policy</div><div class="doc-card-text">Google-issued app that Intune installs in the Work Profile or Fully Managed device. It enforces all Intune policies on the Android side. The device admin agent.</div></div><div class="doc-card"><div class="doc-card-icon">🔔</div><div class="doc-card-title">FCM Push</div><div class="doc-card-text">Firebase Cloud Messaging delivers push notifications to trigger device check-in. Requires <code>fcm.googleapis.com</code> to be reachable. No FCM = no push sync (device still polls every 8h).</div></div></div><h3 class="doc-h3">Work Profile vs Fully Managed — Architecture Difference</h3><table class="feature-table"><thead><tr><th>Aspect</th><th>Work Profile (BYOD)</th><th>Fully Managed (COPE/COBO)</th></tr></thead><tbody><tr><td>Device Ownership</td><td>Employee-owned</td><td>Company-owned</td></tr><tr><td>OS-Level Isolation</td><td>Cryptographic Work Profile container in Android OS</td><td>Entire device managed — no personal space</td></tr><tr><td>Google Account</td><td>Personal Google account on personal side; managed account in Work Profile</td><td>Managed Google account only — no personal side</td></tr><tr><td>Management Scope</td><td>Work Profile apps and settings only</td><td>Full device: all apps, settings, hardware</td></tr><tr><td>Enrollment Method</td><td>Company Portal → user creates Work Profile</td><td>Zero-Touch Enrollment, QR code, or NFC bump at factory reset</td></tr><tr><td>Remote Wipe</td><td>Selective wipe (Work Profile only)</td><td>Full device wipe</td></tr></tbody></table><div class="callout info"><div class="callout-icon">ℹ️</div><div class="callout-body"><div class="callout-title">Android AOSP (GMS-Free) Devices</div><div class="callout-text">For Android devices without Google Mobile Services — common in China or in certain manufacturing hardware — Intune provides a separate management track using the Microsoft Intune app (not Company Portal) and Microsoft's own push channel instead of FCM. This supports a subset of Android Enterprise capabilities.</div></div></div>
+</section><section class="doc-section" id="s-network">
+  <div class="doc-section-header">
+    <span class="doc-section-number">06</span>
+    <div class="doc-section-titles">
+      <div class="doc-section-tag">Network Requirements</div>
+      <div class="doc-section-title">Required Endpoints & Firewall Rules</div>
+    </div>
+  </div>
+  <p class="doc-section-desc">All device-to-Intune communication is outbound HTTPS on port 443 from the device. The following endpoints must be reachable from all managed devices. SSL inspection (TLS break-and-inspect) should be bypassed for these domains.</p>
+  <table class="feature-table"><thead><tr><th>Domain / Endpoint</th><th>Port</th><th>Used By</th><th>Purpose</th></tr></thead><tbody><tr><td><code>*.manage.microsoft.com</code></td><td>443</td><td>All platforms</td><td>Primary Intune MDM endpoint — policy delivery, device check-in, inventory reporting</td></tr><tr><td><code>*.microsoft.com</code></td><td>443</td><td>All platforms</td><td>Microsoft identity, token services, and supporting cloud services</td></tr><tr><td><code>*.microsoftonline.com</code></td><td>443</td><td>All platforms</td><td>Entra ID authentication, token issuance, device registration</td></tr><tr><td><code>*.windowsupdate.com</code></td><td>443</td><td>Windows</td><td>Windows Update delivery — required for OS update management via Intune</td></tr><tr><td><code>*.notify.windows.com</code><br><code>client.wns.windows.com</code></td><td>443</td><td>Windows</td><td>Windows Notification Service — push notifications to trigger MDM check-in</td></tr><tr><td><code>gateway.push.apple.com</code></td><td>2197 (TCP)</td><td>iOS, iPadOS, macOS</td><td>Apple Push Notification Service — push notifications for Apple device check-in</td></tr><tr><td><code>*.push.apple.com</code></td><td>443</td><td>iOS, iPadOS, macOS</td><td>APNs fallback and additional APNs endpoints</td></tr><tr><td><code>fcm.googleapis.com</code></td><td>443</td><td>Android Enterprise</td><td>Firebase Cloud Messaging — push notifications for Android check-in</td></tr><tr><td><code>play.googleapis.com</code></td><td>443</td><td>Android Enterprise</td><td>Google Play Store API for app delivery via Managed Google Play</td></tr><tr><td><code>*.dl.delivery.mp.microsoft.com</code></td><td>443</td><td>Windows</td><td>Delivery Optimization CDN — app and update content delivery</td></tr><tr><td><code>*.azureedge.net</code></td><td>443</td><td>All platforms</td><td>Azure CDN — Win32 app package downloads via SAS URL</td></tr><tr><td><code>enrollment.manage.microsoft.com</code></td><td>443</td><td>Windows</td><td>MDM auto-discovery during enrollment</td></tr><tr><td><code>has.spserv.microsoft.com</code></td><td>443</td><td>Windows</td><td>Device Health Attestation service — TPM boot integrity verification</td></tr></tbody></table><div class="callout danger"><div class="callout-icon">🚫</div><div class="callout-body"><div class="callout-title">SSL Inspection Warning</div><div class="callout-text">Do <strong>not</strong> apply TLS break-and-inspect (SSL inspection) to any of the Intune, Entra ID, APNs, or WNS endpoints. SSL inspection replaces the server's certificate with the proxy's certificate. MDM protocols and certificate pinning used by Apple APNs, WNS, and the Intune MDM client will fail if the certificate chain is altered by an intermediate proxy. Add all domains listed above to your proxy/firewall SSL inspection bypass list.</div></div></div>
+</section><section class="doc-section" id="s-azure">
+  <div class="doc-section-header">
+    <span class="doc-section-number">07</span>
+    <div class="doc-section-titles">
+      <div class="doc-section-tag">Azure Services</div>
+      <div class="doc-section-title">Azure Service Dependencies</div>
+    </div>
+  </div>
+  <p class="doc-section-desc">Intune is built on multiple Azure services. Understanding which services are involved helps diagnose service outages, plan for business continuity, and understand data residency requirements.</p>
+  <table class="feature-table"><thead><tr><th>Azure Service</th><th>Intune Role</th><th>Impact if Unavailable</th><th>Data Stored</th></tr></thead><tbody><tr><td>Azure Active Directory / Entra ID</td><td>Device registration, user identity, Conditional Access</td><td>Enrollment fails. CA blocks all access. No token issuance.</td><td>Device objects, user objects, group memberships, compliance state</td></tr><tr><td>Azure Blob Storage</td><td>App package storage (.intunewin, scripts)</td><td>Win32 app downloads fail. New app deployments cannot proceed.</td><td>Encrypted app packages, scripts (AES-256 at rest)</td></tr><tr><td>Azure CDN</td><td>Content delivery for app packages</td><td>App downloads become slow or fail in geographically distant locations.</td><td>Cached copies of app packages from Blob Storage</td></tr><tr><td>Azure Key Vault</td><td>Encryption key management for app packages</td><td>App package decryption fails. New packages cannot be encrypted/uploaded.</td><td>App package AES-256 encryption keys</td></tr><tr><td>Microsoft Graph API</td><td>All Intune management operations</td><td>Portal unusable. All automation stops. No policy changes can be applied.</td><td>None — API surface only</td></tr><tr><td>Azure Monitor / Log Analytics</td><td>Intune diagnostic logging, Endpoint Analytics</td><td>Loss of telemetry and reporting. No compliance trend data.</td><td>Device telemetry, policy application events, app install logs</td></tr><tr><td>Microsoft Defender for Endpoint</td><td>Device risk score for compliance</td><td>MDE-based compliance rules default to last known state. No new threat signals.</td><td>Device threat signals, risk scores, alert data</td></tr></tbody></table><div class="callout info"><div class="callout-icon">📊</div><div class="callout-body"><div class="callout-title">Service Health Monitoring</div><div class="callout-text">Monitor Intune and all dependent Azure services via: <strong>Microsoft 365 Admin Centre → Health → Service Health</strong>. Individual Azure service health is at <strong>status.azure.com</strong>. During a Entra ID outage, for example, device enrollment, Conditional Access, and token issuance all fail simultaneously — even if the Intune service itself is fully healthy.</div></div></div>
+</section><section class="doc-section" id="s-mam">
+  <div class="doc-section-header">
+    <span class="doc-section-number">08</span>
+    <div class="doc-section-titles">
+      <div class="doc-section-tag">MAM Architecture</div>
+      <div class="doc-section-title">App Protection Without Device Enrollment</div>
+    </div>
+  </div>
+  <p class="doc-section-desc">The MAM-WE (Mobile Application Management Without Enrollment) path manages data inside apps without any device-level management. This is architecturally separate from the MDM path and uses a different authentication and policy delivery mechanism.</p>
+  <h3 class="doc-h3">MAM Architecture — How It Differs from MDM</h3><div class="card-grid cg-2"><div class="doc-card"><div class="doc-card-icon">🔑</div><div class="doc-card-title">MSAL Token-Based</div><div class="doc-card-text">No MDM profile. No device certificate. Instead, the Intune SDK inside the app uses the user's MSAL access token to authenticate to the Intune MAM service and retrieve the App Protection Policy assigned to that user.</div></div><div class="doc-card"><div class="doc-card-icon">📦</div><div class="doc-card-title">App-Layer Enforcement</div><div class="doc-card-text">All policy controls (copy/paste block, save restrictions, PIN requirement) are enforced inside the app by the SDK. The OS is not involved — no MDM profile, no CSP settings.</div></div><div class="doc-card"><div class="doc-card-icon">🔄</div><div class="doc-card-title">Policy Refresh Cycle</div><div class="doc-card-text">The SDK refreshes the App Protection Policy every 30 minutes while the app is in the foreground, and on every app launch if more than 30 minutes have elapsed since the last refresh.</div></div><div class="doc-card"><div class="doc-card-icon">🧹</div><div class="doc-card-title">Selective Wipe Path</div><div class="doc-card-text">IT issues a selective wipe via the Intune MAM service. On the next token refresh, the SDK detects the wipe flag and removes all corporate data from the app's managed storage. Device is completely untouched.</div></div></div><h3 class="doc-h3">MAM vs MDM — Architecture Comparison</h3><table class="feature-table"><thead><tr><th>Aspect</th><th>MAM (App-Level)</th><th>MDM (Device-Level)</th></tr></thead><tbody><tr><td>Authentication</td><td>User MSAL token via OIDC</td><td>Device MDM certificate (mutual TLS)</td></tr><tr><td>Policy Channel</td><td>Intune MAM service → SDK inside app</td><td>Intune MDM endpoint → OS MDM client</td></tr><tr><td>Enforcement Point</td><td>Inside the app (SDK hooks data APIs)</td><td>OS level (CSP registry settings, MDM profiles)</td></tr><tr><td>Device Registration</td><td>Not required (MAM-WE) or optional (MAM+MDM)</td><td>Required — device must be Entra ID registered</td></tr><tr><td>IT Visibility</td><td>User and app data only — no device inventory</td><td>Full device inventory, app list, hardware details</td></tr><tr><td>Wipe Capability</td><td>Selective wipe of app data only</td><td>Full device wipe or selective wipe</td></tr><tr><td>Platforms</td><td>iOS, Android (Microsoft apps + SDK apps)</td><td>Windows, iOS, Android, macOS, Linux</td></tr></tbody></table><div class="callout info"><div class="callout-icon">→</div><div class="callout-body"><div class="callout-title">Related modules</div><div class="callout-text"><a href="mdm-vs-byod.html" class="xref">MDM vs BYOD enrollment models</a> &nbsp; <a href="app-management.html" class="xref">App Protection Policy details</a> &nbsp; <a href="azure-ad.html" class="xref">CA policy for MAM-WE</a></div></div></div>
+</section><section class="doc-section" id="s-lifecycle">
+  <div class="doc-section-header">
+    <span class="doc-section-number">09</span>
+    <div class="doc-section-titles">
+      <div class="doc-section-tag">Policy Lifecycle</div>
+      <div class="doc-section-title">Policy Delivery & Device Check-in Lifecycle</div>
+    </div>
+  </div>
+  <p class="doc-section-desc">How policies move from an admin saving them in Intune to the setting being applied on the device — and what happens during every subsequent check-in.</p>
+  <div class="steps"><div class="step"><div class="step-num">1</div><div class="step-body"><div class="step-title">Admin Saves a Policy in Intune</div><div class="step-text">Policy is written to the Intune database. The change is immediately queued for delivery. Intune sends a push notification (WNS/APNs/FCM) to all devices targeted by the policy's assigned group.</div></div></div><div class="step"><div class="step-num">2</div><div class="step-body"><div class="step-title">Push Notification Triggers Check-in</div><div class="step-text">The device's push notification client receives the signal and wakes the MDM client. The MDM client opens an HTTPS session to the Intune MDM endpoint using its enrollment certificate for mutual TLS authentication.</div></div></div><div class="step"><div class="step-num">3</div><div class="step-body"><div class="step-title">Delta Sync — Changed Policies Only</div><div class="step-text">Intune performs a delta sync — only policies that have changed since the last check-in are sent. This keeps check-in traffic minimal even on devices with hundreds of assigned policies.</div></div></div><div class="step"><div class="step-num">4</div><div class="step-body"><div class="step-title">Device Applies Policy Settings</div><div class="step-text">The MDM client writes the received CSP values to the appropriate registry locations or applies the configuration profile. For Win32 apps and scripts, the IME processes its assignments separately in its own polling cycle.</div></div></div><div class="step"><div class="step-num">5</div><div class="step-body"><div class="step-title">Device Reports Compliance State</div><div class="step-text">After applying policies, the device evaluates all compliance policies against its current state and reports the result back to Intune. Intune updates the device's compliance state in Entra ID.</div></div></div><div class="step"><div class="step-num">6</div><div class="step-body"><div class="step-title">Conditional Access Reads Compliance</div><div class="step-text">On the user's next token request (accessing Outlook, Teams, SharePoint), Conditional Access reads the compliance state from the Entra ID device object and makes an access decision.</div></div></div><div class="step"><div class="step-num">7</div><div class="step-body"><div class="step-title">Scheduled Check-in Every 8 Hours</div><div class="step-text">Even without a push trigger, the device checks in on its own schedule (default every 8 hours for all platforms). This ensures policies are never more than 8 hours stale even if push notifications are blocked.</div></div></div></div><div class="callout ok"><div class="callout-icon">⚡</div><div class="callout-body"><div class="callout-title">Forcing an Immediate Check-in</div><div class="callout-text">You can trigger an out-of-cycle check-in three ways:<br>1. <strong>From Intune portal:</strong> Devices → [Device] → Sync<br>2. <strong>From Windows device:</strong> Settings → Accounts → Access Work or School → Info → Sync<br>3. <strong>Via Graph API:</strong> <code>POST /deviceManagement/managedDevices/{id}/syncDevice</code> &nbsp;<a href="graph-api-automation.html" class="xref">Graph API remote actions</a></div></div></div><div class="callout info"><div class="callout-icon">ℹ️</div><div class="callout-body"><div class="callout-title">Check-in Frequency Reference</div><div class="callout-text">After initial enrollment: 1 min, 3 min, 5 min, 15 min, then hourly for 8 hours, then every 8 hours. The aggressive initial schedule ensures newly enrolled devices receive all their policies quickly. After the device stabilises, it settles into the 8-hour cadence.</div></div></div>
+</section>
+    <footer class="page-footer"><a href="index.html" class="foot-nav"><span class="foot-nav-arrow">←</span><div><span class="foot-nav-label">Previous</span><span class="foot-nav-title">🏠 Home</span></div></a><span class="foot-center">Intune Deep Dive · 12 Modules</span><a href="mdm-vs-byod.html" class="foot-nav foot-next"><span class="foot-nav-arrow">→</span><div><span class="foot-nav-label">Next</span><span class="foot-nav-title">⚖️ MDM vs BYOD</span></div></a></footer>
+  </div>
+  <aside class="toc-panel"><div class="toc-panel-title">On This Page</div><a href="#s-overview">High-Level Architecture</a><a href="#s-platforms">Per-Platform Channels</a><a href="#s-windows">Windows MDM Stack</a><a href="#s-apple">iOS & macOS Stack</a><a href="#s-android">Android Enterprise</a><a href="#s-network">Network Requirements</a><a href="#s-azure">Azure Service Dependencies</a><a href="#s-mam">MAM Architecture</a><a href="#s-lifecycle">Policy Lifecycle</a></aside>
+</div>
+<script>
+/* Sidebar toggle */
+const sidebar = document.getElementById('sidebar');
+const overlay = document.getElementById('mob-overlay');
+document.getElementById('tb-ham')?.addEventListener('click', () => {
+  sidebar?.classList.toggle('open');
+  overlay?.classList.toggle('show');
+});
+overlay?.addEventListener('click', () => {
+  sidebar?.classList.remove('open');
+  overlay?.classList.remove('show');
+});
+
+/* TOC active link */
+const tocLinks = document.querySelectorAll('.toc-panel a');
+if (tocLinks.length) {
+  const io = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        tocLinks.forEach(l => l.classList.remove('active'));
+        const lk = document.querySelector('.toc-panel a[href="#' + e.target.id + '"]');
+        if (lk) lk.classList.add('active');
+      }
+    });
+  }, { rootMargin: '-10% 0px -80% 0px' });
+  document.querySelectorAll('.doc-section[id]').forEach(s => io.observe(s));
+}
+</script>
+</body>
+</html>

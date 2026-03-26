@@ -2,736 +2,640 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="description" content="Microsoft Intune Deep Dive — Home">
-<title>Home — Intune Deep Dive</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;600&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<meta name="description" content="Intune Deep Dive — Home">
+<title>Home · Intune Deep Dive</title>
 <style>
 
-/* ═══════════════════════════════════════════
-   INTUNE DEEP DIVE — SHARED DESIGN SYSTEM v3
-   ═══════════════════════════════════════════ */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
 
-:root {
-  --bg: #05080f;
-  --bg2: #080d18;
-  --surface: #0c1220;
-  --surface2: #101828;
-  --border: #1a2840;
-  --border2: #243550;
-  --text: #c8d8ec;
-  --text2: #7a96b8;
-  --text3: #4a6080;
-  --white: #f0f6ff;
-  --radius: 12px;
-  --radius-sm: 7px;
-  --transition: 0.22s cubic-bezier(0.4,0,0.2,1);
-  --shadow: 0 4px 24px rgba(0,0,0,0.4);
-  --shadow-lg: 0 8px 48px rgba(0,0,0,0.6);
-}
-
-/* ── Reset ── */
-*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
-html { scroll-behavior: smooth; font-size: 16px; }
+/* ── Reset & Base ── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 16px; scroll-behavior: smooth; scroll-padding-top: 104px; }
 body {
-  background: var(--bg);
-  color: var(--text);
-  font-family: 'IBM Plex Mono', monospace;
-  overflow-x: hidden;
-  min-height: 100vh;
+  font-family: 'Inter', system-ui, sans-serif;
+  background: #0d1117;
+  color: #c9d1d9;
   line-height: 1.6;
+  overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
 }
-img { max-width:100%; display:block; }
-a { color: inherit; }
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+code { font-family: 'JetBrains Mono', monospace; font-size: 0.88em; background: #1c2430; border: 1px solid #30363d; border-radius: 4px; padding: 2px 6px; color: #79c0ff; }
+pre { font-family: 'JetBrains Mono', monospace; }
 
-/* ── Top Nav Bar ── */
+/* ── Accent ── */
+:root { --accent: #3b82f6; --accent-bg: rgba(59,130,246,0.1); --accent-border: rgba(59,130,246,0.3); }
+
+/* ── LAYOUT ── */
+.layout {
+  display: grid;
+  grid-template-columns: 260px minmax(0, 1fr) 220px;
+  grid-template-rows: 52px 1fr;
+  grid-template-areas: "top top top" "side content toc";
+  min-height: 100vh;
+}
+
+/* ── TOPBAR ── */
 .topbar {
-  position: sticky;
-  top: 0;
-  z-index: 100;
-  background: rgba(5,8,15,0.92);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border-bottom: 1px solid var(--border);
-  padding: 0 24px;
+  grid-area: top;
+  position: sticky; top: 0; z-index: 100;
+  display: flex; align-items: center; padding: 0 20px; gap: 12px;
+  background: rgba(13,17,23,0.95);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid #21262d;
   height: 52px;
-  display: flex;
-  align-items: center;
-  gap: 0;
 }
-.topbar-brand {
-  display: flex;
-  align-items: center;
-  gap: 10px;
+.tb-logo {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 14px; font-weight: 700; color: #f0f6ff;
+  text-decoration: none; flex-shrink: 0;
+  padding-right: 16px; border-right: 1px solid #21262d;
+  margin-right: 4px;
+}
+.tb-logo-icon {
+  width: 26px; height: 26px;
+  background: var(--accent); border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; flex-shrink: 0;
+}
+.tb-crumb { display: flex; align-items: center; gap: 6px; font-size: 13px; color: #6e7681; }
+.tb-crumb a { color: var(--accent); text-decoration: none; }
+.tb-crumb a:hover { text-decoration: underline; }
+.tb-crumb-sep { color: #30363d; }
+.tb-spacer { flex: 1; }
+.tb-tag {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px; color: var(--accent);
+  background: var(--accent-bg); border: 1px solid var(--accent-border);
+  padding: 3px 10px; border-radius: 20px; letter-spacing: 0.03em;
+}
+.tb-ham {
+  display: none; background: none; border: none; cursor: pointer;
+  flex-direction: column; align-items: center; justify-content: center;
+  gap: 5px; width: 34px; height: 34px; border-radius: 6px; flex-shrink: 0;
+}
+.tb-ham span { display: block; width: 16px; height: 2px; background: #6e7681; border-radius: 2px; transition: 0.2s; }
+
+/* ── SIDEBAR ── */
+.sidebar {
+  grid-area: side;
+  position: sticky; top: 52px;
+  height: calc(100vh - 52px);
+  overflow-y: auto; overflow-x: hidden;
+  background: #0d1117;
+  border-right: 1px solid #21262d;
+  display: flex; flex-direction: column;
+  scrollbar-width: thin; scrollbar-color: #21262d transparent;
+}
+.sb-section { padding: 16px 12px 0; }
+.sb-section-label {
+  font-size: 11px; font-weight: 600;
+  color: #6e7681; text-transform: uppercase; letter-spacing: 0.06em;
+  padding: 0 8px; margin-bottom: 4px;
+}
+.sb-link {
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 10px; border-radius: 6px;
+  font-size: 13px; font-weight: 500;
+  color: #8b949e; text-decoration: none;
+  transition: all 0.15s; border: 1px solid transparent;
+  margin-bottom: 1px;
+}
+.sb-link:hover { color: #c9d1d9; background: #161b22; text-decoration: none; }
+.sb-link.active {
+  color: var(--accent); background: var(--accent-bg);
+  border-color: var(--accent-border); font-weight: 600;
+}
+.sb-link-icon { width: 18px; flex-shrink: 0; font-size: 14px; text-align: center; }
+.sb-link-badge {
+  margin-left: auto; font-size: 10px; font-weight: 600;
+  color: #6e7681; background: #161b22; border: 1px solid #21262d;
+  padding: 1px 6px; border-radius: 10px; flex-shrink: 0;
+}
+.sb-link.active .sb-link-badge { color: var(--accent); background: var(--accent-bg); border-color: var(--accent-border); }
+.sb-divider { height: 1px; background: #21262d; margin: 10px 12px; }
+.sb-footer { padding: 12px 16px; font-size: 11px; color: #484f58; margin-top: auto; border-top: 1px solid #21262d; }
+
+/* ── CONTENT ── */
+.content { grid-area: content; min-width: 0; }
+
+/* ── TOC ── */
+.toc-panel {
+  grid-area: toc;
+  position: sticky; top: 52px;
+  height: calc(100vh - 52px);
+  overflow-y: auto; padding: 20px 16px;
+  background: #0d1117; border-left: 1px solid #21262d;
+  scrollbar-width: thin; scrollbar-color: #21262d transparent;
+}
+.toc-panel-title {
+  font-size: 11px; font-weight: 700; color: #6e7681;
+  text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 12px;
+}
+.toc-panel a {
+  display: block; font-size: 12px; color: #6e7681;
+  padding: 4px 0 4px 10px;
+  border-left: 2px solid transparent;
+  transition: all 0.15s; line-height: 1.4; margin-bottom: 3px;
   text-decoration: none;
-  flex-shrink: 0;
-  margin-right: 20px;
 }
-.topbar-brand-icon {
-  width: 28px; height: 28px;
-  background: var(--accent);
-  border-radius: 6px;
-  display: flex; align-items:center; justify-content:center;
-  font-size: 14px;
-  flex-shrink: 0;
-  box-shadow: 0 0 12px var(--accent-glow);
-}
-.topbar-brand-text {
-  font-family: 'Syne', sans-serif;
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--white);
-  white-space: nowrap;
-}
-.topbar-divider {
-  width: 1px; height: 20px;
-  background: var(--border2);
-  margin: 0 16px;
-  flex-shrink: 0;
-}
-.topbar-links {
-  display: flex;
-  gap: 2px;
-  overflow-x: auto;
-  scrollbar-width: none;
-  flex: 1;
-}
-.topbar-links::-webkit-scrollbar { display: none; }
-.topbar-link {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  padding: 6px 11px;
-  border-radius: 6px;
-  font-size: 11px;
-  color: var(--text3);
-  text-decoration: none;
-  white-space: nowrap;
-  transition: all var(--transition);
-  border: 1px solid transparent;
-  flex-shrink: 0;
-}
-.topbar-link:hover {
-  color: var(--accent);
-  background: rgba(255,255,255,0.04);
-  border-color: var(--border2);
-}
-.topbar-link.active {
-  color: var(--accent);
-  background: rgba(255,255,255,0.05);
-  border-color: var(--accent-dim);
-}
-.topbar-link .link-emoji { font-size: 12px; }
+.toc-panel a:hover { color: var(--accent); border-left-color: var(--accent-border); text-decoration: none; }
+.toc-panel a.active { color: var(--accent); border-left-color: var(--accent); }
+.toc-panel a.toc-l2 { padding-left: 20px; font-size: 11px; }
+
+/* ═══════════════════════════════════════════════════════
+   DOCS CONTENT — PROPER STRUCTURED LAYOUT
+   ═══════════════════════════════════════════════════════ */
 
 /* ── Page Header ── */
 .page-header {
-  position: relative;
-  padding: 64px 48px 48px;
-  border-bottom: 1px solid var(--border);
-  overflow: hidden;
-}
-.page-header::before {
-  content: '';
-  position: absolute;
-  top: -120px; right: -80px;
-  width: 600px; height: 600px;
-  background: radial-gradient(circle, var(--accent-glow) 0%, transparent 65%);
-  pointer-events: none;
-  opacity: 0.5;
+  padding: 48px 48px 32px;
+  border-bottom: 1px solid #21262d;
+  background: linear-gradient(to bottom, #0d1117, #0d1117);
+  position: relative; overflow: hidden;
 }
 .page-header::after {
   content: '';
-  position: absolute;
-  bottom: 0; left: 0; right: 0;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, var(--accent-dim), transparent);
+  position: absolute; bottom: 0; left: 0; right: 0; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--accent-border), transparent);
 }
-.breadcrumb {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 20px;
-  font-size: 11px;
-  color: var(--text3);
-}
-.breadcrumb a { color: var(--accent); text-decoration: none; }
-.breadcrumb a:hover { text-decoration: underline; }
-.breadcrumb-sep { color: var(--text3); }
-.page-eyebrow {
-  font-size: 11px;
-  letter-spacing: 0.35em;
-  color: var(--accent);
-  text-transform: uppercase;
+.page-header-eyebrow {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px; color: var(--accent);
+  text-transform: uppercase; letter-spacing: 0.12em;
   margin-bottom: 14px;
-  opacity: 0.85;
 }
-.page-title {
-  font-family: 'Syne', sans-serif;
-  font-size: clamp(28px, 4.5vw, 58px);
-  font-weight: 800;
-  color: var(--white);
-  line-height: 1.05;
-  letter-spacing: -0.02em;
-  margin-bottom: 16px;
+.page-header-title {
+  font-size: clamp(22px, 3vw, 38px);
+  font-weight: 700; color: #f0f6ff;
+  line-height: 1.2; letter-spacing: -0.02em; margin-bottom: 12px;
 }
-.page-title span { color: var(--accent); }
-.page-subtitle {
-  font-size: 13px;
-  color: var(--text2);
-  max-width: 620px;
-  line-height: 1.75;
+.page-header-desc {
+  font-size: 14px; color: #8b949e; line-height: 1.75;
+  max-width: 640px; margin-bottom: 24px;
 }
-.stat-strip {
-  display: flex;
-  gap: 40px;
-  margin-top: 36px;
-  flex-wrap: wrap;
+.page-header-meta {
+  display: flex; flex-wrap: wrap; gap: 24px; padding-top: 8px;
 }
-.stat-item { display: flex; flex-direction: column; gap: 4px; }
-.stat-value {
-  font-family: 'Syne', sans-serif;
-  font-size: 22px;
-  font-weight: 800;
-  color: var(--accent2);
-  letter-spacing: -0.01em;
-}
-.stat-label { font-size: 10px; color: var(--text3); letter-spacing: 0.1em; text-transform: uppercase; }
+.meta-item { display: flex; align-items: center; gap: 6px; }
+.meta-label { font-size: 11px; color: #484f58; text-transform: uppercase; letter-spacing: 0.06em; }
+.meta-value { font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 600; color: var(--accent); }
 
-/* ── Tab Nav ── */
-.tab-nav {
-  display: flex;
-  gap: 4px;
-  padding: 14px 48px;
-  border-bottom: 1px solid var(--border);
-  overflow-x: auto;
-  scrollbar-width: none;
-  background: var(--bg2);
+/* ── Doc Body ── */
+.doc-body { padding: 0; }
+
+/* ── Doc Section ── */
+.doc-section {
+  padding: 36px 48px 32px;
+  border-bottom: 1px solid #21262d;
 }
-.tab-nav::-webkit-scrollbar { display: none; }
-.tab-btn {
-  padding: 8px 18px;
-  background: transparent;
-  border: 1px solid transparent;
-  border-radius: var(--radius-sm);
-  color: var(--text3);
-  font-family: 'IBM Plex Mono', monospace;
-  font-size: 11.5px;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: all var(--transition);
-  letter-spacing: 0.03em;
+.doc-section:last-child { border-bottom: none; }
+
+/* Section title row */
+.doc-section-header {
+  display: flex; align-items: flex-start; gap: 0;
+  margin-bottom: 20px; padding-bottom: 14px;
+  border-bottom: 1px solid #21262d;
 }
-.tab-btn:hover { color: var(--text); border-color: var(--border2); background: rgba(255,255,255,0.03); }
-.tab-btn.active {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: #000;
-  font-weight: 700;
-  box-shadow: 0 0 16px var(--accent-glow);
+.doc-section-number {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px; font-weight: 700;
+  color: var(--accent); opacity: 0.6;
+  margin-right: 12px; margin-top: 4px;
+  min-width: 28px; flex-shrink: 0;
+}
+.doc-section-titles { flex: 1; }
+.doc-section-tag {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px; color: var(--accent);
+  text-transform: uppercase; letter-spacing: 0.15em;
+  margin-bottom: 4px; opacity: 0.75;
+}
+.doc-section-title {
+  font-size: 19px; font-weight: 700;
+  color: #f0f6ff; letter-spacing: -0.01em; line-height: 1.25;
+}
+.doc-section-desc {
+  font-size: 13px; color: #8b949e; line-height: 1.8;
+  max-width: 700px; margin-bottom: 24px; margin-top: 12px;
 }
 
-/* ── Main Content ── */
-main {
-  padding: 48px;
-  max-width: 1320px;
-  margin: 0 auto;
+/* ── Typography inside sections ── */
+.doc-h3 {
+  font-size: 15px; font-weight: 700; color: #e6edf3;
+  margin: 28px 0 12px; padding-bottom: 8px;
+  border-bottom: 1px solid #21262d;
 }
-.tab-section { display: none; animation: fadeIn 0.3s ease; }
-.tab-section.active { display: block; }
-@keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+.doc-h4 {
+  font-size: 13px; font-weight: 600; color: #c9d1d9;
+  margin: 20px 0 8px;
+}
+.doc-p {
+  font-size: 13px; color: #8b949e; line-height: 1.8; margin-bottom: 16px;
+}
+.doc-p strong { color: #c9d1d9; }
 
-/* ── Section Labels ── */
-.section-label {
-  font-size: 10px;
-  letter-spacing: 0.3em;
+/* ── Definition / Property List ── */
+.prop-list { margin-bottom: 20px; }
+.prop-row {
+  display: grid; grid-template-columns: 180px 1fr;
+  gap: 0; border-bottom: 1px solid #21262d;
+  padding: 10px 0;
+}
+.prop-row:last-child { border-bottom: none; }
+.prop-key {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px; font-weight: 600; color: var(--accent);
+  padding-right: 16px; padding-top: 1px;
+}
+.prop-val { font-size: 13px; color: #c9d1d9; line-height: 1.6; }
+.prop-val span.dim { color: #6e7681; font-size: 12px; }
+
+/* ── Callout Boxes ── */
+.callout {
+  display: flex; gap: 14px;
+  border: 1px solid #21262d; border-radius: 8px;
+  padding: 16px 18px; margin-bottom: 16px;
+  background: #161b22;
+}
+.callout-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+.callout-body { flex: 1; min-width: 0; }
+.callout-title { font-size: 13px; font-weight: 700; margin-bottom: 6px; }
+.callout-text { font-size: 12.5px; color: #8b949e; line-height: 1.8; }
+.callout-text code { font-size: 11px; }
+.callout-text a { color: var(--accent); }
+.callout.info { border-left: 3px solid var(--accent); }
+.callout.info .callout-title { color: var(--accent); }
+.callout.warn { border-left: 3px solid #e3b341; background: rgba(227,179,65,0.05); }
+.callout.warn .callout-title { color: #e3b341; }
+.callout.danger { border-left: 3px solid #f85149; background: rgba(248,81,73,0.05); }
+.callout.danger .callout-title { color: #f85149; }
+.callout.ok { border-left: 3px solid #3fb950; background: rgba(63,185,80,0.05); }
+.callout.ok .callout-title { color: #3fb950; }
+
+/* ── Numbered Steps ── */
+.steps { margin-bottom: 20px; }
+.step {
+  display: flex; gap: 16px;
+  padding: 16px 0; border-bottom: 1px solid #21262d;
+  align-items: flex-start;
+}
+.step:last-child { border-bottom: none; }
+.step-num {
+  width: 28px; height: 28px; flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--accent-bg); border: 1px solid var(--accent-border);
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700;
   color: var(--accent);
-  text-transform: uppercase;
-  margin-bottom: 6px;
-  opacity: 0.8;
 }
-.section-heading {
-  font-family: 'Syne', sans-serif;
-  font-size: 20px;
-  font-weight: 700;
-  color: var(--white);
-  margin-bottom: 8px;
+.step-body { flex: 1; padding-top: 2px; }
+.step-title { font-size: 13px; font-weight: 700; color: #e6edf3; margin-bottom: 5px; }
+.step-text { font-size: 12.5px; color: #8b949e; line-height: 1.75; }
+.step-text code { font-size: 11px; }
+.step-text a { color: var(--accent); }
+
+/* ── Comparison Table (two column) ── */
+.cmp-table {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 1px;
+  background: #21262d; border: 1px solid #21262d; border-radius: 8px;
+  overflow: hidden; margin-bottom: 20px;
 }
-.section-body {
-  font-size: 12px;
-  color: var(--text2);
-  margin-bottom: 32px;
-  line-height: 1.8;
-  max-width: 780px;
+.cmp-head {
+  background: #161b22; padding: 14px 18px;
+  border-bottom: 1px solid #21262d;
 }
+.cmp-head-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 4px; }
+.cmp-head-title { font-size: 16px; font-weight: 700; color: #f0f6ff; }
+.cmp-head-sub { font-size: 12px; color: #6e7681; margin-top: 3px; }
+.cmp-cell { background: #0d1117; padding: 12px 18px; border-bottom: 1px solid #21262d; }
+.cmp-cell:last-child, .cmp-cell:nth-last-child(2):nth-child(odd) { border-bottom: none; }
+.cmp-cell-key { font-size: 10px; font-weight: 600; color: #6e7681; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 3px; }
+.cmp-cell-val { font-size: 12.5px; color: #c9d1d9; line-height: 1.5; }
+
+/* ── Feature Table ── */
+.feature-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 12.5px; }
+.feature-table th {
+  text-align: left; padding: 10px 14px;
+  font-size: 11px; font-weight: 600; color: #6e7681;
+  text-transform: uppercase; letter-spacing: 0.06em;
+  background: #161b22; border-bottom: 2px solid #21262d;
+}
+.feature-table td {
+  padding: 11px 14px; border-bottom: 1px solid #21262d;
+  color: #c9d1d9; vertical-align: top; line-height: 1.5;
+}
+.feature-table tr:last-child td { border-bottom: none; }
+.feature-table tbody tr:hover td { background: rgba(255,255,255,0.02); }
+.feature-table td:first-child { font-weight: 600; color: #e6edf3; }
 
 /* ── Card Grid ── */
-.card-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 16px;
-  margin-bottom: 40px;
-}
-.card-grid.cols-2 { grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); }
-.card-grid.cols-3 { grid-template-columns: repeat(3, 1fr); }
-.card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 22px;
-  transition: all var(--transition);
-  position: relative;
-  overflow: hidden;
-}
-.card::before {
-  content: '';
-  position: absolute;
-  top: 0; left: 0; right: 0;
-  height: 2px;
-  background: linear-gradient(90deg, var(--accent), transparent);
-  opacity: 0;
-  transition: opacity var(--transition);
-}
-.card:hover {
-  border-color: var(--accent-dim);
-  transform: translateY(-2px);
-  box-shadow: 0 8px 32px rgba(0,0,0,0.3);
-}
-.card:hover::before { opacity: 1; }
-.card-emoji { font-size: 24px; margin-bottom: 12px; }
-.card-title {
-  font-family: 'Syne', sans-serif;
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--white);
-  margin-bottom: 8px;
-}
-.card-text { font-size: 11px; color: var(--text2); line-height: 1.8; }
+.card-grid { display: grid; gap: 12px; margin-bottom: 20px; }
+.cg-2 { grid-template-columns: 1fr 1fr; }
+.cg-3 { grid-template-columns: repeat(3, 1fr); }
+.cg-auto { grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
 
-/* ── Info Box ── */
-.info-box {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-left: 3px solid var(--accent);
-  border-radius: var(--radius);
-  padding: 24px 28px;
-  margin-bottom: 20px;
+.doc-card {
+  background: #0d1117; border: 1px solid #21262d; border-radius: 8px;
+  padding: 18px; transition: border-color 0.15s, transform 0.15s;
+  position: relative; overflow: hidden;
 }
-.info-box-title {
-  font-family: 'Syne', sans-serif;
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--accent);
-  margin-bottom: 14px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.info-box-body { font-size: 12px; color: var(--text); line-height: 1.9; }
-
-/* ── Flow Steps ── */
-.flow-steps { display: flex; flex-direction: column; gap: 0; }
-.flow-step {
-  display: flex;
-  gap: 16px;
-  padding: 16px 0;
-  border-bottom: 1px solid var(--border);
-}
-.flow-step:last-child { border-bottom: none; }
-.flow-step-num {
-  width: 30px; height: 30px;
-  border-radius: 50%;
-  background: rgba(255,255,255,0.05);
-  border: 1px solid var(--accent-dim);
-  display: flex; align-items:center; justify-content:center;
-  font-size: 11px; font-weight: 700;
-  color: var(--accent);
-  flex-shrink: 0;
-  margin-top: 1px;
-}
-.flow-step-content { flex: 1; }
-.flow-step-title { font-size: 12px; font-weight: 700; color: var(--white); margin-bottom: 4px; }
-.flow-step-text { font-size: 11px; color: var(--text2); line-height: 1.7; }
+.doc-card:hover { border-color: var(--accent-border); transform: translateY(-1px); }
+.doc-card-icon { font-size: 20px; margin-bottom: 10px; }
+.doc-card-title { font-size: 13px; font-weight: 700; color: #e6edf3; margin-bottom: 6px; }
+.doc-card-text { font-size: 12px; color: #8b949e; line-height: 1.7; }
+.doc-card-link { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 600; color: var(--accent); margin-top: 10px; }
 
 /* ── Code Block ── */
-.code-wrap {
-  background: #020508;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  overflow: hidden;
-  margin-bottom: 20px;
-}
-.code-header {
-  background: var(--surface2);
-  padding: 9px 16px;
-  font-size: 10px;
-  color: var(--text3);
-  letter-spacing: 0.1em;
-  border-bottom: 1px solid var(--border);
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.code-dots { display:flex; gap:5px; }
-.code-dot { width:8px; height:8px; border-radius:50%; }
-.code-dot.red { background:#ff5f57; }
-.code-dot.yellow { background:#febc2e; }
-.code-dot.green { background:#28c840; }
 .code-block {
-  padding: 20px;
-  font-size: 11px;
-  line-height: 1.85;
-  overflow-x: auto;
-  color: #8ba8c8;
+  background: #010409; border: 1px solid #21262d; border-radius: 8px;
+  overflow: hidden; margin-bottom: 16px;
 }
-.c-comment { color: #3a5070; }
-.c-key { color: var(--accent); }
-.c-val { color: var(--accent2); }
-.c-str { color: #d4a862; }
-.c-kw { color: var(--accent3, #00ffc8); }
+.code-block-header {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 14px; background: #161b22;
+  border-bottom: 1px solid #21262d;
+}
+.code-dots { display: flex; gap: 5px; }
+.code-dot { width: 8px; height: 8px; border-radius: 50%; }
+.code-dot-r { background: #ff5f57; } .code-dot-y { background: #febc2e; } .code-dot-g { background: #28c840; }
+.code-block-label { font-size: 11px; color: #6e7681; font-family: 'JetBrains Mono', monospace; margin-left: 4px; }
+.code-block-body { padding: 16px 18px; font-size: 12px; line-height: 1.75; overflow-x: auto; color: #8b949e; }
+.ck { color: #79c0ff; } .cv { color: #56d364; } .cs { color: #e3b341; } .cc { color: #484f58; } .cp { color: #f78166; }
 
-/* ── Table ── */
-.data-table { width:100%; border-collapse:collapse; margin-bottom:32px; font-size:11.5px; }
-.data-table th {
-  padding: 11px 14px;
-  text-align: left;
-  font-size: 10px;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  color: var(--accent);
-  border-bottom: 2px solid var(--border2);
-  background: var(--surface2);
-  white-space: nowrap;
-}
-.data-table td {
-  padding: 11px 14px;
-  border-bottom: 1px solid var(--border);
-  color: var(--text);
-  vertical-align: top;
-  line-height: 1.55;
-}
-.data-table tr:last-child td { border-bottom: none; }
-.data-table tbody tr { transition: background var(--transition); }
-.data-table tbody tr:hover td { background: rgba(255,255,255,0.02); }
-.data-table td:first-child { color: var(--accent2); font-weight: 600; }
+/* ── Badge / Pill ── */
+.badge { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; border: 1px solid; }
+.badge-green { color: #3fb950; border-color: rgba(63,185,80,.3); background: rgba(63,185,80,.08); }
+.badge-red   { color: #f85149; border-color: rgba(248,81,73,.3); background: rgba(248,81,73,.08); }
+.badge-yellow{ color: #e3b341; border-color: rgba(227,179,65,.3); background: rgba(227,179,65,.08); }
+.badge-blue  { color: var(--accent); border-color: var(--accent-border); background: var(--accent-bg); }
+.badge-gray  { color: #6e7681; border-color: #21262d; background: #161b22; }
 
-/* ── Pill Tags ── */
-.pill {
-  display: inline-block;
-  padding: 2px 9px;
-  border-radius: 20px;
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.05em;
-  border: 1px solid;
+/* ── Xref ── */
+.xref {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 11px; font-weight: 600; color: var(--accent);
+  background: var(--accent-bg); border: 1px solid var(--accent-border);
+  padding: 2px 8px; border-radius: 4px; transition: all 0.15s;
+  text-decoration: none; white-space: nowrap;
 }
-.pill-green { color: #00ff88; border-color: rgba(0,255,136,0.35); background: rgba(0,255,136,0.07); }
-.pill-red   { color: #ff5566; border-color: rgba(255,85,102,0.35); background: rgba(255,85,102,0.07); }
-.pill-yellow{ color: #f0c040; border-color: rgba(240,192,64,0.35);  background: rgba(240,192,64,0.07); }
-.pill-blue  { color: var(--accent); border-color: var(--accent-dim); background: rgba(0,168,255,0.07); }
+.xref::before { content: '→ '; }
+.xref:hover { background: var(--accent); color: #000; text-decoration: none; }
 
-/* ── Cross-Reference Link ── */
-.xlink {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 3px 10px;
-  border: 1px solid var(--accent-dim);
-  border-radius: 4px;
-  font-size: 10px;
-  color: var(--accent);
-  text-decoration: none;
-  transition: all var(--transition);
-  margin-top: 8px;
-}
-.xlink:hover { background: var(--accent); color: #000; border-color: var(--accent); }
-.xlink::before { content: '→'; }
-
-/* ── Compare Grid ── */
-.compare-cols {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
-  margin-bottom: 32px;
-}
-.compare-col {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  overflow: hidden;
-}
-.compare-col-head {
-  padding: 18px 22px;
-  border-bottom: 1px solid var(--border);
-}
-.compare-col-eyebrow { font-size: 10px; letter-spacing: 0.25em; text-transform: uppercase; margin-bottom: 5px; }
-.compare-col-title { font-family: 'Syne',sans-serif; font-size: 17px; font-weight: 700; color: var(--white); }
-.compare-col-sub { font-size: 11px; color: var(--text2); margin-top: 3px; }
-.compare-col-body { padding: 18px 22px; }
-.compare-row { display:flex; align-items:flex-start; gap:10px; padding:9px 0; border-bottom:1px solid var(--border); }
-.compare-row:last-child { border-bottom:none; }
-.compare-row-label { font-size:10px; color:var(--text3); text-transform:uppercase; letter-spacing:0.1em; margin-bottom:2px; }
-.compare-row-text { font-size:11px; color:var(--text); line-height:1.6; }
-
-/* ── Hub Cards (index page) ── */
-.hub-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px,1fr));
-  gap: 14px;
-}
-.hub-card {
-  display: block;
-  text-decoration: none;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 22px;
-  transition: all var(--transition);
-  position: relative;
-  overflow: hidden;
-}
-.hub-card::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(135deg, var(--card-accent-glow) 0%, transparent 60%);
-  opacity: 0;
-  transition: opacity var(--transition);
-}
-.hub-card:hover {
-  transform: translateY(-3px);
-  box-shadow: var(--shadow);
-  border-color: var(--card-accent);
-}
-.hub-card:hover::after { opacity: 1; }
-.hub-card.active-page { border-color: var(--card-accent); box-shadow: 0 0 0 1px var(--card-accent); }
-.hub-icon { font-size: 28px; margin-bottom: 12px; }
-.hub-title { font-family:'Syne',sans-serif; font-size:14px; font-weight:700; margin-bottom:6px; }
-.hub-desc { font-size:10px; color:var(--text2); line-height:1.7; }
-.hub-cta { margin-top:12px; font-size:10px; letter-spacing:0.08em; text-transform:uppercase; font-weight:700; }
-
-/* ── Footer ── */
+/* ── Page Footer ── */
 .page-footer {
-  margin-top: 80px;
-  padding: 32px 48px;
-  border-top: 1px solid var(--border);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 16px;
+  padding: 28px 48px;
+  border-top: 1px solid #21262d;
+  display: flex; align-items: center; justify-content: space-between;
+  flex-wrap: wrap; gap: 14px; background: #0d1117;
 }
-.footer-prev, .footer-next {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  text-decoration: none;
-  padding: 12px 20px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  font-size: 12px;
-  color: var(--text2);
-  transition: all var(--transition);
-  min-width: 160px;
+.foot-nav {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 16px; border: 1px solid #21262d; border-radius: 8px;
+  font-size: 13px; color: #8b949e; transition: all 0.15s;
+  text-decoration: none; min-width: 140px;
 }
-.footer-prev:hover, .footer-next:hover { border-color: var(--accent); color: var(--accent); }
-.footer-prev { flex-direction: row; }
-.footer-next { flex-direction: row-reverse; text-align:right; }
-.footer-nav-label { font-size:10px; text-transform:uppercase; letter-spacing:0.1em; color:var(--text3); display:block; margin-bottom:2px; }
-.footer-nav-title { font-family:'Syne',sans-serif; font-size:13px; font-weight:700; color:var(--white); }
-.footer-arrow { font-size:18px; color:var(--accent); flex-shrink:0; }
+.foot-nav:hover { border-color: var(--accent-border); color: var(--accent); text-decoration: none; }
+.foot-nav.foot-next { flex-direction: row-reverse; text-align: right; }
+.foot-nav-arrow { font-size: 16px; color: var(--accent); flex-shrink: 0; }
+.foot-nav-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: #484f58; display: block; margin-bottom: 1px; }
+.foot-nav-title { font-size: 13px; font-weight: 600; color: #e6edf3; }
+.foot-center { font-size: 11px; color: #484f58; }
 
-/* ── Scrollbar ── */
-::-webkit-scrollbar { width: 5px; height: 5px; }
-::-webkit-scrollbar-track { background: var(--bg); }
-::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 10px; }
-::-webkit-scrollbar-thumb:hover { background: var(--text3); }
+/* ── Hub Grid (index) ── */
+.hub-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; }
+.hub-card {
+  display: block; background: #0d1117; border: 1px solid #21262d; border-radius: 8px;
+  padding: 18px; text-decoration: none; transition: all 0.15s;
+  border-left: 3px solid var(--c, #21262d);
+}
+.hub-card:hover { border-color: var(--c); transform: translateY(-2px); box-shadow: 0 4px 20px rgba(0,0,0,.4); text-decoration: none; }
+.hub-card-icon { font-size: 24px; margin-bottom: 10px; }
+.hub-card-badge { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; color: var(--c); }
+.hub-card-title { font-size: 13px; font-weight: 700; color: #e6edf3; margin-bottom: 6px; }
+.hub-card-desc { font-size: 11.5px; color: #6e7681; line-height: 1.6; }
+.hub-card-cta { font-size: 11px; font-weight: 600; color: var(--c); margin-top: 12px; }
 
-/* ══════════════════════════════
+/* ═══════════════════════════════════════════════════
+   TROUBLESHOOTING WIZARD
+   ═══════════════════════════════════════════════════ */
+.wizard-categories { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
+.wiz-cat-btn {
+  background: #0d1117; border: 1px solid #21262d; border-radius: 8px;
+  padding: 16px; cursor: pointer; text-align: left; transition: all 0.15s;
+  display: flex; flex-direction: column; gap: 5px;
+  border-left: 3px solid var(--wc, #21262d);
+}
+.wiz-cat-btn:hover { border-color: var(--wc); background: rgba(255,255,255,0.02); }
+.wiz-cat-icon { font-size: 22px; }
+.wiz-cat-title { font-size: 13px; font-weight: 700; color: #e6edf3; }
+.wiz-cat-sub { font-size: 11px; color: #6e7681; line-height: 1.5; }
+
+/* Dialog */
+.wiz-backdrop {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,0.75); z-index: 500;
+  align-items: flex-start; justify-content: center;
+  padding: 40px 20px; overflow-y: auto;
+  backdrop-filter: blur(4px);
+}
+.wiz-backdrop.open { display: flex; animation: bzFade .18s ease; }
+@keyframes bzFade { from { opacity:0; } to { opacity:1; } }
+
+.wiz-modal {
+  background: #161b22; border: 1px solid #30363d;
+  border-radius: 12px; width: 100%; max-width: 720px;
+  box-shadow: 0 24px 80px rgba(0,0,0,.8);
+  animation: bzSlide .2s ease;
+  flex-shrink: 0;
+}
+@keyframes bzSlide { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:none; } }
+
+.wiz-modal-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 18px 22px 14px; border-bottom: 1px solid #21262d;
+  position: sticky; top: 0; background: #161b22; border-radius: 12px 12px 0 0; z-index: 2;
+}
+.wiz-modal-title { font-size: 16px; font-weight: 700; color: #f0f6ff; }
+.wiz-modal-close {
+  background: none; border: none; cursor: pointer; color: #6e7681;
+  font-size: 18px; width: 32px; height: 32px; border-radius: 6px;
+  display: flex; align-items: center; justify-content: center; transition: all .15s;
+}
+.wiz-modal-close:hover { background: #21262d; color: #c9d1d9; }
+
+/* Scenario picker */
+.wiz-pick { padding: 18px 22px; }
+.wiz-pick-label { font-size: 12px; color: #6e7681; margin-bottom: 14px; }
+.wiz-scenario-list { display: flex; flex-direction: column; gap: 6px; }
+.wiz-sc {
+  display: flex; align-items: center; gap: 12px;
+  background: #0d1117; border: 1px solid #21262d; border-radius: 8px;
+  padding: 13px 16px; cursor: pointer; transition: all .15s;
+  text-align: left;
+}
+.wiz-sc:hover { border-color: var(--accent-border); background: var(--accent-bg); }
+.wiz-sc-icon { font-size: 18px; flex-shrink: 0; }
+.wiz-sc-label { font-size: 13px; font-weight: 600; color: #e6edf3; }
+.wiz-sc-desc { font-size: 11.5px; color: #6e7681; margin-top: 2px; }
+
+/* Guide panel */
+.wiz-guide { padding: 22px; display: none; }
+.wiz-back-btn {
+  background: none; border: none; cursor: pointer; color: var(--accent);
+  font-size: 13px; font-weight: 600; font-family: 'Inter', sans-serif;
+  display: flex; align-items: center; gap: 5px; padding: 0; margin-bottom: 18px;
+  transition: opacity .15s;
+}
+.wiz-back-btn:hover { opacity: .75; }
+
+.g-banner {
+  background: var(--accent-bg); border: 1px solid var(--accent-border);
+  border-radius: 8px; padding: 16px 18px; margin-bottom: 18px;
+}
+.g-banner-tag { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--accent); text-transform: uppercase; letter-spacing: .1em; margin-bottom: 6px; }
+.g-banner-title { font-size: 17px; font-weight: 700; color: #f0f6ff; margin-bottom: 6px; }
+.g-banner-desc { font-size: 12.5px; color: #8b949e; line-height: 1.7; }
+
+.g-block { margin-bottom: 16px; border: 1px solid #21262d; border-radius: 8px; overflow: hidden; }
+.g-block-head {
+  background: #161b22; padding: 10px 16px;
+  display: flex; align-items: center; gap: 8px;
+  font-size: 13px; font-weight: 700; color: #e6edf3;
+  border-bottom: 1px solid #21262d;
+}
+.g-block-body { padding: 14px 16px; background: #0d1117; }
+
+.g-cause-grid { display: flex; flex-wrap: wrap; gap: 6px; }
+.g-cause-tag { font-size: 11px; padding: 3px 10px; border-radius: 20px; font-weight: 600; border: 1px solid; }
+.gt-cause { color: #f85149; border-color: rgba(248,81,73,.35); background: rgba(248,81,73,.08); }
+.gt-where { color: #79c0ff; border-color: rgba(121,192,255,.35); background: rgba(121,192,255,.08); }
+.gt-fix   { color: #3fb950; border-color: rgba(63,185,80,.35); background: rgba(63,185,80,.08); }
+
+.g-steps { padding: 0; list-style: none; }
+.g-step { display: flex; gap: 12px; padding: 12px 0; border-bottom: 1px solid #21262d; }
+.g-step:last-child { border-bottom: none; }
+.g-step-n {
+  width: 24px; height: 24px; flex-shrink: 0; border-radius: 50%;
+  background: var(--accent-bg); border: 1px solid var(--accent-border);
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 700; color: var(--accent);
+  margin-top: 2px;
+}
+.g-step-t { font-size: 12.5px; font-weight: 700; color: #e6edf3; margin-bottom: 4px; }
+.g-step-d { font-size: 12px; color: #8b949e; line-height: 1.75; }
+.g-step-d code { font-size: 11px; }
+.g-step-d a { color: var(--accent); }
+
+/* ═══════════════════════════════════════════════════
    RESPONSIVE
-   ══════════════════════════════ */
-@media (max-width: 900px) {
-  .card-grid.cols-3 { grid-template-columns: repeat(2,1fr); }
-  .compare-cols { grid-template-columns: 1fr; }
+   ═══════════════════════════════════════════════════ */
+@media (max-width: 1100px) {
+  .layout { grid-template-columns: 240px 1fr; grid-template-areas: "top top" "side content"; }
+  .toc-panel { display: none; }
+  .cg-3 { grid-template-columns: 1fr 1fr; }
 }
-
-@media (max-width: 640px) {
-  .page-header { padding: 40px 20px 32px; }
-  .tab-nav { padding: 12px 16px; }
-  main { padding: 28px 16px; }
-  .topbar { padding: 0 16px; }
-  .topbar-brand-text { display: none; }
-  .page-footer { padding: 24px 16px; flex-direction: column; }
-  .footer-prev, .footer-next { min-width: unset; width:100%; }
-  .card-grid, .card-grid.cols-2, .card-grid.cols-3 { grid-template-columns: 1fr; }
+@media (max-width: 768px) {
+  .layout { grid-template-columns: 1fr; grid-template-areas: "top" "content"; }
+  .sidebar { display: none; position: fixed; top: 52px; left: 0; z-index: 150; width: 260px; height: calc(100vh - 52px); transform: translateX(-100%); transition: transform .25s ease; border-right: 1px solid #30363d; }
+  .sidebar.open { display: flex; transform: translateX(0); }
+  .tb-ham { display: flex; }
+  .page-header { padding: 32px 20px 24px; }
+  .doc-section { padding: 24px 20px; }
+  .page-footer { padding: 20px; flex-direction: column; }
+  .foot-nav { min-width: 0; width: 100%; }
+  .cmp-table, .cg-2, .cg-3 { grid-template-columns: 1fr; }
   .hub-grid { grid-template-columns: 1fr 1fr; }
-  .stat-strip { gap: 24px; }
+  .wizard-categories { grid-template-columns: 1fr 1fr; }
 }
-
-@media (max-width: 380px) {
-  .hub-grid { grid-template-columns: 1fr; }
+@media (max-width: 440px) {
+  .hub-grid, .wizard-categories { grid-template-columns: 1fr; }
 }
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #21262d; border-radius: 10px; }
+.mob-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.6); z-index: 140; }
+.mob-overlay.show { display: block; }
 
-:root {
-  --accent: #00a8ff;
-  --accent2: #00ffc8;
-  --accent3: #ff6b35;
-  --accent-glow: rgba(0,168,255,0.06);
-  --accent-dim: rgba(0,168,255,0.3);
-}
-
+:root { --accent:#3b82f6; --accent-bg:rgba(59,130,246,0.1); --accent-border:rgba(59,130,246,0.3); }
 </style>
 </head>
 <body>
-
-<nav class="topbar">
-  <a href="index.html" class="topbar-brand" title="Home">
-    <div class="topbar-brand-icon">🏗️</div>
-    <span class="topbar-brand-text">Intune Deep Dive</span>
-  </a>
-  <div class="topbar-divider"></div>
-  <div class="topbar-links">
-    <a href="index.html" class="topbar-link active"><span class="link-emoji">🏠</span><span class="link-text">Home</span></a>
-<a href="mdm-vs-byod.html" class="topbar-link"><span class="link-emoji">⚖️</span><span class="link-text">MDM vs BYOD</span></a>
-<a href="endpoint-security.html" class="topbar-link"><span class="link-emoji">🛡️</span><span class="link-text">Security</span></a>
-<a href="azure-ad.html" class="topbar-link"><span class="link-emoji">🔐</span><span class="link-text">Azure AD & CA</span></a>
-<a href="policy-management.html" class="topbar-link"><span class="link-emoji">📋</span><span class="link-text">Policies</span></a>
-<a href="windows-autopilot.html" class="topbar-link"><span class="link-emoji">🚀</span><span class="link-text">Autopilot</span></a>
-<a href="certificates-scep-pkcs.html" class="topbar-link"><span class="link-emoji">🔑</span><span class="link-text">Certificates</span></a>
-<a href="microsoft-tunnel-vpn.html" class="topbar-link"><span class="link-emoji">🌐</span><span class="link-text">Tunnel & VPN</span></a>
-<a href="graph-api-automation.html" class="topbar-link"><span class="link-emoji">⚡</span><span class="link-text">Graph API</span></a>
-<a href="app-management.html" class="topbar-link"><span class="link-emoji">📦</span><span class="link-text">App Mgmt</span></a>
-
+<div class="mob-overlay" id="mob-overlay"></div>
+<div class="layout">
+  <header class="topbar">
+    <button class="tb-ham" id="tb-ham"><span></span><span></span><span></span></button>
+    <a href="index.html" class="tb-logo">
+      <span class="tb-logo-icon">🏗️</span>Intune Deep Dive
+    </a>
+    <nav class="tb-crumb">
+      <span class="tb-crumb-sep">/</span>
+      <span style="color:#c9d1d9">Home</span>
+    </nav>
+    <div class="tb-spacer"></div>
+    <span class="tb-tag">Hub</span>
+  </header>
+  <aside class="sidebar" id="sidebar">
+  <div style="padding:14px 14px 0">
+    <a href="index.html" style="display:flex;align-items:center;gap:8px;text-decoration:none;padding:8px 6px 12px;border-bottom:1px solid #21262d;margin-bottom:4px">
+      <span style="width:26px;height:26px;background:var(--accent);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0">🏗️</span>
+      <span style="font-size:13px;font-weight:700;color:#f0f6ff;line-height:1.2">Intune<br><span style="font-size:10px;font-weight:500;color:#484f58;letter-spacing:.06em;text-transform:uppercase">Deep Dive</span></span>
+    </a>
   </div>
-</nav>
-
-<header class="page-header">
-  <div class="page-eyebrow">// Microsoft Intune Deep Dive Series</div>
-  <h1 class="page-title">Microsoft <span>Intune</span><br>Knowledge Base</h1>
-  <p class="page-subtitle">10 technical modules covering every layer of Microsoft Intune — from MDM protocols and backend architecture to Zero Trust, certificates, app management, and full automation via Graph API.</p>
-  <div class="stat-strip">
-    <div class="stat-item"><span class="stat-value">10</span><span class="stat-label">Deep Dive Modules</span></div>
-    <div class="stat-item"><span class="stat-value">5+</span><span class="stat-label">Platforms Covered</span></div>
-    <div class="stat-item"><span class="stat-value">100%</span><span class="stat-label">Cloud-Native</span></div>
-    <div class="stat-item"><span class="stat-value">ZTA</span><span class="stat-label">Zero Trust Ready</span></div>
-  </div>
-</header>
-
-<main>
-  <div class="section-label">Series Overview</div>
-  <div class="section-heading">Choose a Module</div>
-  <p class="section-body">Each module is a standalone deep dive with multiple sections, technical flows, code examples, and cross-references to related modules. Start anywhere.</p>
-  <div class="hub-grid">
-    
-<a href="index.html" class="hub-card active-page" style="--card-accent:#00a8ff; --card-accent-glow:rgba(0,0,0,0);">
-  <div class="hub-icon">🏗️</div>
-  <div class="hub-title" style="color:#00a8ff">Backend Architecture</div>
-  <div class="hub-desc">MDM protocols · Azure services · Enrollment flows · Per-platform deep dive</div>
-  <div class="hub-cta" style="color:#00a8ff">CURRENT PAGE →</div>
-</a>
-<a href="mdm-vs-byod.html" class="hub-card" style="--card-accent:#00ff88; --card-accent-glow:rgba(0,0,0,0);">
-  <div class="hub-icon">⚖️</div>
-  <div class="hub-title" style="color:#00ff88">MDM vs BYOD</div>
-  <div class="hub-desc">Ownership models · Enrollment types · Capabilities matrix · Privacy & data</div>
-  <div class="hub-cta" style="color:#00ff88">OPEN MODULE →</div>
-</a>
-<a href="endpoint-security.html" class="hub-card" style="--card-accent:#a855f7; --card-accent-glow:rgba(0,0,0,0);">
-  <div class="hub-icon">🛡️</div>
-  <div class="hub-title" style="color:#a855f7">Endpoint Security</div>
-  <div class="hub-desc">Compliance engine · MDE integration · Threat scenarios · Zero Trust</div>
-  <div class="hub-cta" style="color:#a855f7">OPEN MODULE →</div>
-</a>
-<a href="azure-ad.html" class="hub-card" style="--card-accent:#ff6b35; --card-accent-glow:rgba(0,0,0,0);">
-  <div class="hub-icon">🔐</div>
-  <div class="hub-title" style="color:#ff6b35">Azure AD & Conditional Access</div>
-  <div class="hub-desc">Device registration · CA policies · OAuth2 token flow · Real-world scenarios</div>
-  <div class="hub-cta" style="color:#ff6b35">OPEN MODULE →</div>
-</a>
-<a href="policy-management.html" class="hub-card" style="--card-accent:#00e5ff; --card-accent-glow:rgba(0,0,0,0);">
-  <div class="hub-icon">📋</div>
-  <div class="hub-title" style="color:#00e5ff">Policy Management</div>
-  <div class="hub-desc">Policy types · Conflict resolution · Assignment targeting · Settings Catalog</div>
-  <div class="hub-cta" style="color:#00e5ff">OPEN MODULE →</div>
-</a>
-<a href="windows-autopilot.html" class="hub-card" style="--card-accent:#f0c040; --card-accent-glow:rgba(0,0,0,0);">
-  <div class="hub-icon">🚀</div>
-  <div class="hub-title" style="color:#f0c040">Windows Autopilot</div>
-  <div class="hub-desc">Zero-touch provisioning · Deployment modes · ESP phases · Troubleshooting</div>
-  <div class="hub-cta" style="color:#f0c040">OPEN MODULE →</div>
-</a>
-<a href="certificates-scep-pkcs.html" class="hub-card" style="--card-accent:#00d4aa; --card-accent-glow:rgba(0,0,0,0);">
-  <div class="hub-icon">🔑</div>
-  <div class="hub-title" style="color:#00d4aa">Certificates: SCEP & PKCS</div>
-  <div class="hub-desc">NDES integration · SCEP/PKCS flows · Wi-Fi & VPN cert auth · Lifecycle</div>
-  <div class="hub-cta" style="color:#00d4aa">OPEN MODULE →</div>
-</a>
-<a href="microsoft-tunnel-vpn.html" class="hub-card" style="--card-accent:#e040fb; --card-accent-glow:rgba(0,0,0,0);">
-  <div class="hub-icon">🌐</div>
-  <div class="hub-title" style="color:#e040fb">Microsoft Tunnel & VPN</div>
-  <div class="hub-desc">Tunnel gateway · Per-app VPN · Always-On VPN · Split tunneling</div>
-  <div class="hub-cta" style="color:#e040fb">OPEN MODULE →</div>
-</a>
-<a href="graph-api-automation.html" class="hub-card" style="--card-accent:#7fff00; --card-accent-glow:rgba(0,0,0,0);">
-  <div class="hub-icon">⚡</div>
-  <div class="hub-title" style="color:#7fff00">Graph API & Automation</div>
-  <div class="hub-desc">Auth flows · Key endpoints · PowerShell · Terraform IaC · GitOps</div>
-  <div class="hub-cta" style="color:#7fff00">OPEN MODULE →</div>
-</a>
-<a href="app-management.html" class="hub-card" style="--card-accent:#ff4daa; --card-accent-glow:rgba(0,0,0,0);">
-  <div class="hub-icon">📦</div>
-  <div class="hub-title" style="color:#ff4daa">App Management</div>
-  <div class="hub-desc">Win32 via IME · Apple VPP · Android Play · MAM SDK · Lifecycle</div>
-  <div class="hub-cta" style="color:#ff4daa">OPEN MODULE →</div>
-</a>
-  </div>
-  <div class="info-box" style="margin-top:16px;">
-    <div class="info-box-title">💡 How to use this series</div>
-    <div class="info-box-body">
-      New to Intune? Start with <a href="index.html" style="color:var(--accent)">Backend Architecture</a> → <a href="mdm-vs-byod.html" style="color:#00ff88">MDM vs BYOD</a> → <a href="policy-management.html" style="color:#00e5ff">Policy Management</a>.<br>
-      Security-focused? Jump to <a href="endpoint-security.html" style="color:#a855f7">Endpoint Security</a> → <a href="azure-ad.html" style="color:#ff6b35">Azure AD & CA</a>.<br>
-      Automating deployments? See <a href="windows-autopilot.html" style="color:#f0c040">Autopilot</a> → <a href="graph-api-automation.html" style="color:#7fff00">Graph API & Automation</a>.<br>
-      Look for <span style="color:var(--accent);font-size:11px;border:1px solid var(--accent-dim);padding:1px 6px;border-radius:3px;">→ cross-references</span> inside each module to jump between related topics.
+  <div class="sb-section"><div class="sb-section-label">Documentation</div><a href="index.html" class="sb-link active"><span class="sb-link-icon">🏠</span>Home<span class="sb-link-badge">Hub</span></a><a href="backend-architecture.html" class="sb-link"><span class="sb-link-icon">🏗️</span>Backend Architecture<span class="sb-link-badge">Core</span></a><a href="mdm-vs-byod.html" class="sb-link"><span class="sb-link-icon">⚖️</span>MDM vs BYOD<span class="sb-link-badge">Enrollment</span></a><a href="endpoint-security.html" class="sb-link"><span class="sb-link-icon">🛡️</span>Endpoint Security<span class="sb-link-badge">Security</span></a><a href="azure-ad.html" class="sb-link"><span class="sb-link-icon">🔐</span>Azure AD & CA<span class="sb-link-badge">Identity</span></a><a href="policy-management.html" class="sb-link"><span class="sb-link-icon">📋</span>Policy Management<span class="sb-link-badge">Config</span></a><a href="windows-autopilot.html" class="sb-link"><span class="sb-link-icon">🚀</span>Autopilot<span class="sb-link-badge">Deploy</span></a><a href="certificates-scep-pkcs.html" class="sb-link"><span class="sb-link-icon">🔑</span>Certificates<span class="sb-link-badge">PKI</span></a><a href="microsoft-tunnel-vpn.html" class="sb-link"><span class="sb-link-icon">🌐</span>Tunnel & VPN<span class="sb-link-badge">Network</span></a><a href="graph-api-automation.html" class="sb-link"><span class="sb-link-icon">⚡</span>Graph API<span class="sb-link-badge">Automate</span></a><a href="app-management.html" class="sb-link"><span class="sb-link-icon">📦</span>App Management<span class="sb-link-badge">Apps</span></a></div><div class="sb-section"><div class="sb-section-label">Tools</div><a href="troubleshooting.html" class="sb-link"><span class="sb-link-icon">🔧</span>Troubleshooter<span class="sb-link-badge">Support</span></a></div><div class="sb-divider"></div>
+  <div class="sb-footer">v5 · 12 Modules · Microsoft Intune</div>
+</aside>
+  <div class="content">
+    <div class="page-header">
+  <div class="page-header-eyebrow">🏗️ Microsoft Intune Deep Dive</div>
+  <h1 class="page-header-title">Intune Knowledge Base</h1>
+  <p class="page-header-desc">12 technical reference modules covering every layer of Microsoft Intune — from backend architecture and MDM protocols to identity, security, provisioning, app management, certificates, VPN, and an interactive troubleshooting wizard.</p>
+  <div class="page-header-meta"><div class="meta-item"><span class="meta-label">Modules</span><span class="meta-value">12</span></div><div class="meta-item"><span class="meta-label">Platforms</span><span class="meta-value">Win · iOS · Android · macOS · Linux</span></div><div class="meta-item"><span class="meta-label">Standard</span><span class="meta-value">Zero Trust</span></div><div class="meta-item"><span class="meta-label">Stack</span><span class="meta-value">Full IaC Ready</span></div></div>
+</div><section class="doc-section" id="modules">
+  <div class="doc-section-header">
+    <span class="doc-section-number">01</span>
+    <div class="doc-section-titles">
+      <div class="doc-section-tag">Series</div>
+      <div class="doc-section-title">All Modules</div>
     </div>
   </div>
-</main>
-
-<footer class="page-footer">
-  
-  <span style="font-size:11px;color:var(--text3);">Intune Deep Dive Series — 10 Modules</span>
-  <a href="mdm-vs-byod.html" class="footer-next"><span class="footer-arrow">→</span><div><span class="footer-nav-label">Next</span><span class="footer-nav-title">⚖️ MDM vs BYOD</span></div></a>
-</footer>
+  <p class="doc-section-desc">Click any module to open the full technical reference.</p>
+  <div class="hub-grid"><a href="backend-architecture.html" class="hub-card" style="--c:#e879f9"><div class="hub-card-icon">🏗️</div><div class="hub-card-badge">Core</div><div class="hub-card-title">Backend Architecture</div><div class="hub-card-desc">MDM protocols · Azure services · Per-platform channels · Network endpoints · MAM vs MDM</div><div class="hub-card-cta">Open module →</div></a><a href="mdm-vs-byod.html" class="hub-card" style="--c:#10b981"><div class="hub-card-icon">⚖️</div><div class="hub-card-badge">Enrollment</div><div class="hub-card-title">MDM vs BYOD</div><div class="hub-card-desc">Ownership models · Capabilities matrix · Enrollment flows · Privacy boundaries</div><div class="hub-card-cta">Open module →</div></a><a href="endpoint-security.html" class="hub-card" style="--c:#8b5cf6"><div class="hub-card-icon">🛡️</div><div class="hub-card-badge">Security</div><div class="hub-card-title">Endpoint Security</div><div class="hub-card-desc">Compliance engine · MDE integration · ASR policies · Zero Trust</div><div class="hub-card-cta">Open module →</div></a><a href="azure-ad.html" class="hub-card" style="--c:#f97316"><div class="hub-card-icon">🔐</div><div class="hub-card-badge">Identity</div><div class="hub-card-title">Azure AD & CA</div><div class="hub-card-desc">Device registration · CA policies · OAuth2 token flow · Access scenarios</div><div class="hub-card-cta">Open module →</div></a><a href="policy-management.html" class="hub-card" style="--c:#06b6d4"><div class="hub-card-icon">📋</div><div class="hub-card-badge">Config</div><div class="hub-card-title">Policy Management</div><div class="hub-card-desc">Policy types · Conflict resolution · Filters · Settings Catalog</div><div class="hub-card-cta">Open module →</div></a><a href="windows-autopilot.html" class="hub-card" style="--c:#eab308"><div class="hub-card-icon">🚀</div><div class="hub-card-badge">Deploy</div><div class="hub-card-title">Autopilot</div><div class="hub-card-desc">Zero-touch provisioning · Deployment modes · ESP phases · Troubleshooting</div><div class="hub-card-cta">Open module →</div></a><a href="certificates-scep-pkcs.html" class="hub-card" style="--c:#14b8a6"><div class="hub-card-icon">🔑</div><div class="hub-card-badge">PKI</div><div class="hub-card-title">Certificates</div><div class="hub-card-desc">SCEP vs PKCS · NDES connector · Cloud PKI · Wi-Fi/VPN cert auth</div><div class="hub-card-cta">Open module →</div></a><a href="microsoft-tunnel-vpn.html" class="hub-card" style="--c:#d946ef"><div class="hub-card-icon">🌐</div><div class="hub-card-badge">Network</div><div class="hub-card-title">Tunnel & VPN</div><div class="hub-card-desc">Tunnel gateway · Per-app VPN · Always-On VPN · mTLS auth</div><div class="hub-card-cta">Open module →</div></a><a href="graph-api-automation.html" class="hub-card" style="--c:#84cc16"><div class="hub-card-icon">⚡</div><div class="hub-card-badge">Automate</div><div class="hub-card-title">Graph API</div><div class="hub-card-desc">Authentication · Key endpoints · PowerShell · Terraform IaC</div><div class="hub-card-cta">Open module →</div></a><a href="app-management.html" class="hub-card" style="--c:#f43f5e"><div class="hub-card-icon">📦</div><div class="hub-card-badge">Apps</div><div class="hub-card-title">App Management</div><div class="hub-card-desc">Win32 / IME · Apple VPP · Android Play · MAM SDK · Lifecycle</div><div class="hub-card-cta">Open module →</div></a><a href="troubleshooting.html" class="hub-card" style="--c:#fb923c"><div class="hub-card-icon">🔧</div><div class="hub-card-badge">Support</div><div class="hub-card-title">Troubleshooter</div><div class="hub-card-desc">Interactive wizard · 9 categories · 60+ scenarios · Log reference</div><div class="hub-card-cta">Open module →</div></a></div><div class="callout info"><div class="callout-icon">💡</div><div class="callout-body"><div class="callout-title">Recommended Learning Paths</div><div class="callout-text">New to Intune? Start with <a href='backend-architecture.html'><strong>Backend Architecture</strong></a> → <a href='mdm-vs-byod.html'>MDM vs BYOD</a> → <a href='policy-management.html'>Policy Management</a><br>Security-focused? <a href='endpoint-security.html'>Endpoint Security</a> → <a href='azure-ad.html'>Azure AD & CA</a> → <a href='certificates-scep-pkcs.html'>Certificates</a><br>Automating? <a href='windows-autopilot.html'>Autopilot</a> → <a href='graph-api-automation.html'>Graph API & Automation</a><br>Something broken? <a href='troubleshooting.html'><strong>🔧 Open the Troubleshooting Wizard</strong></a></div></div></div>
+</section>
+    <footer class="page-footer"><span></span><span class="foot-center">Intune Deep Dive · 12 Modules</span><a href="backend-architecture.html" class="foot-nav foot-next"><span class="foot-nav-arrow">→</span><div><span class="foot-nav-label">Next</span><span class="foot-nav-title">🏗️ Backend Architecture</span></div></a></footer>
+  </div>
+  <aside class="toc-panel"><div class="toc-panel-title">On This Page</div><a href="#modules">All Modules</a></aside>
+</div>
 <script>
-// ── Tab switching with history ──
-function showTab(id, btn) {
-  document.querySelectorAll('.tab-section').forEach(s => s.classList.remove('active'));
-  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-  const el = document.getElementById(id);
-  if (el) el.classList.add('active');
-  if (btn) btn.classList.add('active');
-  // smooth scroll to tab content on mobile
-  if (window.innerWidth < 640) {
-    setTimeout(() => el && el.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
-  }
-}
-
-// ── Topbar scroll shadow ──
-window.addEventListener('scroll', () => {
-  const tb = document.querySelector('.topbar');
-  if (tb) tb.style.boxShadow = scrollY > 10 ? '0 4px 24px rgba(0,0,0,0.5)' : '';
-}, { passive: true });
-
-// ── Activate first tab on load ──
-document.addEventListener('DOMContentLoaded', () => {
-  const firstBtn = document.querySelector('.tab-btn');
-  const firstSec = document.querySelector('.tab-section');
-  if (firstBtn && !document.querySelector('.tab-btn.active')) {
-    firstBtn.classList.add('active');
-  }
-  if (firstSec && !document.querySelector('.tab-section.active')) {
-    firstSec.classList.add('active');
-  }
+/* Sidebar toggle */
+const sidebar = document.getElementById('sidebar');
+const overlay = document.getElementById('mob-overlay');
+document.getElementById('tb-ham')?.addEventListener('click', () => {
+  sidebar?.classList.toggle('open');
+  overlay?.classList.toggle('show');
 });
+overlay?.addEventListener('click', () => {
+  sidebar?.classList.remove('open');
+  overlay?.classList.remove('show');
+});
+
+/* TOC active link */
+const tocLinks = document.querySelectorAll('.toc-panel a');
+if (tocLinks.length) {
+  const io = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        tocLinks.forEach(l => l.classList.remove('active'));
+        const lk = document.querySelector('.toc-panel a[href="#' + e.target.id + '"]');
+        if (lk) lk.classList.add('active');
+      }
+    });
+  }, { rootMargin: '-10% 0px -80% 0px' });
+  document.querySelectorAll('.doc-section[id]').forEach(s => io.observe(s));
+}
 </script>
 </body>
 </html>
