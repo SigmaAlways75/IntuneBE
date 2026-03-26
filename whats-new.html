@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<meta name="description" content="Intune Deep Dive — Home">
-<title>Home · Intune Deep Dive</title>
+<meta name="description" content="Intune Deep Dive — What's New in Intune">
+<title>What's New in Intune · Intune Deep Dive</title>
 <style>
 
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
@@ -560,7 +560,48 @@ pre { font-family: 'JetBrains Mono', monospace; }
 .mob-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.6); z-index: 140; }
 .mob-overlay.show { display: block; }
 
-:root { --accent:#3b82f6; --accent-bg:rgba(59,130,246,0.1); --accent-border:rgba(59,130,246,0.3); }
+:root { --accent:#34d399; --accent-bg:rgba(52,211,153,0.1); --accent-border:rgba(52,211,153,0.3); }
+
+/* What's New specific styles */
+.wn-status { display:flex; align-items:center; gap:8px; padding:10px 16px;
+  background:#161b22; border:1px solid #21262d; border-radius:8px;
+  font-size:12px; color:#6e7681; margin-bottom:16px; }
+.wn-dot { width:8px; height:8px; border-radius:50%; background:#6e7681; flex-shrink:0; animation:pulse 2s infinite; }
+.wn-dot.live { background:#3fb950; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+.wn-content { min-height:400px; }
+.wn-loading { display:flex; flex-direction:column; align-items:center; justify-content:center;
+  min-height:300px; gap:14px; color:#6e7681; font-size:13px; }
+.wn-spinner { width:32px; height:32px; border:3px solid #21262d; border-top-color:var(--accent);
+  border-radius:50%; animation:spin .8s linear infinite; }
+@keyframes spin { to { transform:rotate(360deg); } }
+.wn-error { padding:24px; background:#161b22; border:1px solid #21262d; border-radius:8px;
+  text-align:center; color:#6e7681; font-size:13px; }
+.wn-error a { color:var(--accent); }
+/* Rendered MS Learn content styles */
+.ms-content { font-size:13px; color:#c9d1d9; line-height:1.75; }
+.ms-content h2 { font-size:17px; font-weight:700; color:#f0f6ff; margin:32px 0 12px;
+  padding-bottom:8px; border-bottom:1px solid #21262d; letter-spacing:-.01em; }
+.ms-content h3 { font-size:14px; font-weight:700; color:#e6edf3; margin:20px 0 8px; }
+.ms-content h4 { font-size:13px; font-weight:600; color:#c9d1d9; margin:14px 0 6px; }
+.ms-content p  { margin-bottom:12px; color:#8b949e; }
+.ms-content ul, .ms-content ol { padding-left:20px; margin-bottom:12px; }
+.ms-content li { margin-bottom:5px; color:#8b949e; line-height:1.65; }
+.ms-content strong { color:#c9d1d9; }
+.ms-content code { font-family:'JetBrains Mono',monospace; font-size:11px;
+  background:#1c2430; border:1px solid #30363d; border-radius:4px; padding:1px 5px; color:#79c0ff; }
+.ms-content a { color:var(--accent); }
+.ms-content a:hover { text-decoration:underline; }
+.ms-content blockquote { border-left:3px solid var(--accent); padding-left:14px; margin:12px 0;
+  color:#6e7681; font-style:italic; }
+.ms-content table { width:100%; border-collapse:collapse; margin:14px 0; font-size:12px; }
+.ms-content th { text-align:left; padding:8px 12px; background:#161b22; border-bottom:2px solid #21262d; color:#6e7681; font-size:11px; text-transform:uppercase; letter-spacing:.06em; }
+.ms-content td { padding:9px 12px; border-bottom:1px solid #21262d; }
+.ms-content hr { border:none; border-top:1px solid #21262d; margin:24px 0; }
+.wn-week-badge { display:inline-flex; align-items:center; gap:6px; font-family:'JetBrains Mono',monospace;
+  font-size:10px; color:var(--accent); background:var(--accent-bg); border:1px solid var(--accent-border);
+  padding:3px 10px; border-radius:20px; margin-bottom:8px; }
+.wn-last-updated { font-size:11px; color:#484f58; font-family:'JetBrains Mono',monospace; }
 
 </style>
 </head>
@@ -570,9 +611,9 @@ pre { font-family: 'JetBrains Mono', monospace; }
   <header class="topbar">
     <button class="tb-ham" id="tb-ham"><span></span><span></span><span></span></button>
     <a href="index.html" class="tb-logo"><span class="tb-logo-icon">🏗️</span>Intune Deep Dive</a>
-    <nav class="tb-crumb"><span class="tb-crumb-sep">/</span><span style="color:#c9d1d9">Home</span></nav>
+    <nav class="tb-crumb"><span class="tb-crumb-sep">/</span><span style="color:#c9d1d9">What's New</span></nav>
     <div class="tb-spacer"></div>
-    <span class="tb-tag">Hub</span>
+    <span class="tb-tag">Updates</span>
   </header>
   <aside class="sidebar" id="sidebar">
   <div style="padding:14px 14px 0">
@@ -581,14 +622,19 @@ pre { font-family: 'JetBrains Mono', monospace; }
       <span style="font-size:13px;font-weight:700;color:#f0f6ff;line-height:1.2">Intune<br><span style="font-size:10px;font-weight:500;color:#484f58;letter-spacing:.06em;text-transform:uppercase">Deep Dive</span></span>
     </a>
   </div>
-  <div class="sb-section"><div class="sb-section-label">Documentation</div><a href="backend-architecture.html" class="sb-link"><span class="sb-link-icon">🏗️</span>Backend Architecture<span class="sb-link-badge">Core</span></a><a href="mdm-vs-byod.html" class="sb-link"><span class="sb-link-icon">⚖️</span>MDM vs BYOD<span class="sb-link-badge">Enrollment</span></a><a href="endpoint-security.html" class="sb-link"><span class="sb-link-icon">🛡️</span>Endpoint Security<span class="sb-link-badge">Security</span></a><a href="azure-ad.html" class="sb-link"><span class="sb-link-icon">🔐</span>Azure AD & CA<span class="sb-link-badge">Identity</span></a><a href="policy-management.html" class="sb-link"><span class="sb-link-icon">📋</span>Policy Management<span class="sb-link-badge">Config</span></a><a href="windows-autopilot.html" class="sb-link"><span class="sb-link-icon">🚀</span>Autopilot<span class="sb-link-badge">Deploy</span></a><a href="certificates-scep-pkcs.html" class="sb-link"><span class="sb-link-icon">🔑</span>Certificates<span class="sb-link-badge">PKI</span></a><a href="microsoft-tunnel-vpn.html" class="sb-link"><span class="sb-link-icon">🌐</span>Tunnel & VPN<span class="sb-link-badge">Network</span></a><a href="graph-api-automation.html" class="sb-link"><span class="sb-link-icon">⚡</span>Graph API<span class="sb-link-badge">Automate</span></a><a href="app-management.html" class="sb-link"><span class="sb-link-icon">📦</span>App Management<span class="sb-link-badge">Apps</span></a><a href="reporting-issues.html" class="sb-link"><span class="sb-link-icon">📊</span>Reporting Issues<span class="sb-link-badge">Analytics</span></a><a href="mdm-comparison.html" class="sb-link"><span class="sb-link-icon">⚔️</span>MDM Comparison<span class="sb-link-badge">Insight</span></a><a href="whats-new.html" class="sb-link"><span class="sb-link-icon">🆕</span>What's New<span class="sb-link-badge">Updates</span></a></div><div class="sb-section"><div class="sb-section-label">Tools</div><a href="troubleshooting.html" class="sb-link"><span class="sb-link-icon">🔧</span>Troubleshooter<span class="sb-link-badge">Support</span></a></div><div class="sb-divider"></div>
+  <div class="sb-section"><div class="sb-section-label">Documentation</div><a href="backend-architecture.html" class="sb-link"><span class="sb-link-icon">🏗️</span>Backend Architecture<span class="sb-link-badge">Core</span></a><a href="mdm-vs-byod.html" class="sb-link"><span class="sb-link-icon">⚖️</span>MDM vs BYOD<span class="sb-link-badge">Enrollment</span></a><a href="endpoint-security.html" class="sb-link"><span class="sb-link-icon">🛡️</span>Endpoint Security<span class="sb-link-badge">Security</span></a><a href="azure-ad.html" class="sb-link"><span class="sb-link-icon">🔐</span>Azure AD & CA<span class="sb-link-badge">Identity</span></a><a href="policy-management.html" class="sb-link"><span class="sb-link-icon">📋</span>Policy Management<span class="sb-link-badge">Config</span></a><a href="windows-autopilot.html" class="sb-link"><span class="sb-link-icon">🚀</span>Autopilot<span class="sb-link-badge">Deploy</span></a><a href="certificates-scep-pkcs.html" class="sb-link"><span class="sb-link-icon">🔑</span>Certificates<span class="sb-link-badge">PKI</span></a><a href="microsoft-tunnel-vpn.html" class="sb-link"><span class="sb-link-icon">🌐</span>Tunnel & VPN<span class="sb-link-badge">Network</span></a><a href="graph-api-automation.html" class="sb-link"><span class="sb-link-icon">⚡</span>Graph API<span class="sb-link-badge">Automate</span></a><a href="app-management.html" class="sb-link"><span class="sb-link-icon">📦</span>App Management<span class="sb-link-badge">Apps</span></a><a href="reporting-issues.html" class="sb-link"><span class="sb-link-icon">📊</span>Reporting Issues<span class="sb-link-badge">Analytics</span></a><a href="mdm-comparison.html" class="sb-link"><span class="sb-link-icon">⚔️</span>MDM Comparison<span class="sb-link-badge">Insight</span></a><a href="whats-new.html" class="sb-link active"><span class="sb-link-icon">🆕</span>What's New<span class="sb-link-badge">Updates</span></a></div><div class="sb-section"><div class="sb-section-label">Tools</div><a href="troubleshooting.html" class="sb-link"><span class="sb-link-icon">🔧</span>Troubleshooter<span class="sb-link-badge">Support</span></a></div><div class="sb-divider"></div>
   <div class="sb-footer">v5 · 15 Modules · Microsoft Intune</div>
 </aside>
   <div class="content">
-    <div class="page-header"><div class="page-header-eyebrow">🏗️ Microsoft Intune Deep Dive</div><h1 class="page-header-title">Intune Knowledge Base</h1><p class="page-header-desc">15 technical reference modules covering every layer of Microsoft Intune — backend architecture, MDM protocols, identity, security, automation, app management, reporting analysis, MDM comparison, and a live What's New feed that auto-updates from Microsoft Learn.</p><div class="page-header-meta"><div class="meta-item"><span class="meta-label">Modules</span><span class="meta-value">15</span></div><div class="meta-item"><span class="meta-label">Platforms</span><span class="meta-value">Win · iOS · Android · macOS · Linux</span></div><div class="meta-item"><span class="meta-label">Model</span><span class="meta-value">Zero Trust</span></div><div class="meta-item"><span class="meta-label">Stack</span><span class="meta-value">IaC + Graph API</span></div></div></div><section class="doc-section" id="modules"><div class="doc-section-header"><span class="doc-section-number">01</span><div class="doc-section-titles"><div class="doc-section-tag">Series</div><div class="doc-section-title">All Modules</div></div></div><p class="doc-section-desc">Click any module to open the full technical reference.</p><div class="hub-grid"><a href="backend-architecture.html" class="hub-card" style="--c:#e879f9"><div class="hub-card-icon">🏗️</div><div class="hub-card-badge">Core</div><div class="hub-card-title">Backend Architecture</div><div class="hub-card-desc">MDM protocols · Azure services · Per-platform channels · Network endpoints</div><div class="hub-card-cta">Open module →</div></a><a href="mdm-vs-byod.html" class="hub-card" style="--c:#10b981"><div class="hub-card-icon">⚖️</div><div class="hub-card-badge">Enrollment</div><div class="hub-card-title">MDM vs BYOD</div><div class="hub-card-desc">Ownership models · Capabilities matrix · Enrollment flows · Privacy</div><div class="hub-card-cta">Open module →</div></a><a href="endpoint-security.html" class="hub-card" style="--c:#8b5cf6"><div class="hub-card-icon">🛡️</div><div class="hub-card-badge">Security</div><div class="hub-card-title">Endpoint Security</div><div class="hub-card-desc">Compliance engine · MDE integration · ASR policies · Zero Trust</div><div class="hub-card-cta">Open module →</div></a><a href="azure-ad.html" class="hub-card" style="--c:#f97316"><div class="hub-card-icon">🔐</div><div class="hub-card-badge">Identity</div><div class="hub-card-title">Azure AD & CA</div><div class="hub-card-desc">Device registration · CA policies · OAuth2 token flow</div><div class="hub-card-cta">Open module →</div></a><a href="policy-management.html" class="hub-card" style="--c:#06b6d4"><div class="hub-card-icon">📋</div><div class="hub-card-badge">Config</div><div class="hub-card-title">Policy Management</div><div class="hub-card-desc">Policy types · Conflicts · Assignment Filters · Settings Catalog</div><div class="hub-card-cta">Open module →</div></a><a href="windows-autopilot.html" class="hub-card" style="--c:#eab308"><div class="hub-card-icon">🚀</div><div class="hub-card-badge">Deploy</div><div class="hub-card-title">Autopilot</div><div class="hub-card-desc">Zero-touch · Deployment modes · ESP phases · Troubleshooting</div><div class="hub-card-cta">Open module →</div></a><a href="certificates-scep-pkcs.html" class="hub-card" style="--c:#14b8a6"><div class="hub-card-icon">🔑</div><div class="hub-card-badge">PKI</div><div class="hub-card-title">Certificates</div><div class="hub-card-desc">SCEP vs PKCS · NDES · Cloud PKI · Wi-Fi/VPN cert auth</div><div class="hub-card-cta">Open module →</div></a><a href="microsoft-tunnel-vpn.html" class="hub-card" style="--c:#d946ef"><div class="hub-card-icon">🌐</div><div class="hub-card-badge">Network</div><div class="hub-card-title">Tunnel & VPN</div><div class="hub-card-desc">Tunnel gateway · Per-app VPN · Always-On VPN · mTLS</div><div class="hub-card-cta">Open module →</div></a><a href="graph-api-automation.html" class="hub-card" style="--c:#84cc16"><div class="hub-card-icon">⚡</div><div class="hub-card-badge">Automate</div><div class="hub-card-title">Graph API</div><div class="hub-card-desc">Auth flows · Key endpoints · PowerShell · Terraform IaC</div><div class="hub-card-cta">Open module →</div></a><a href="app-management.html" class="hub-card" style="--c:#f43f5e"><div class="hub-card-icon">📦</div><div class="hub-card-badge">Apps</div><div class="hub-card-title">App Management</div><div class="hub-card-desc">Win32/IME · Apple VPP · Android Play · MAM SDK · Lifecycle</div><div class="hub-card-cta">Open module →</div></a><a href="reporting-issues.html" class="hub-card" style="--c:#38bdf8"><div class="hub-card-icon">📊</div><div class="hub-card-badge">Analytics</div><div class="hub-card-title">Reporting Issues</div><div class="hub-card-desc">Current gaps · Root causes · Microsoft roadmap · Better reporting now</div><div class="hub-card-cta">Open module →</div></a><a href="mdm-comparison.html" class="hub-card" style="--c:#a78bfa"><div class="hub-card-icon">⚔️</div><div class="hub-card-badge">Insight</div><div class="hub-card-title">MDM Comparison</div><div class="hub-card-desc">Intune vs Jamf vs Workspace ONE vs SOTI vs Ivanti · TCO · Decision guide</div><div class="hub-card-cta">Open module →</div></a><a href="whats-new.html" class="hub-card" style="--c:#34d399"><div class="hub-card-icon">🆕</div><div class="hub-card-badge">Updates</div><div class="hub-card-title">What's New</div><div class="hub-card-desc">Live feed from Microsoft Learn · Auto-updates on every page load</div><div class="hub-card-cta">Open module →</div></a><a href="troubleshooting.html" class="hub-card" style="--c:#fb923c"><div class="hub-card-icon">🔧</div><div class="hub-card-badge">Support</div><div class="hub-card-title">Troubleshooter</div><div class="hub-card-desc">Interactive wizard · 9 categories · Step-by-step resolution</div><div class="hub-card-cta">Open module →</div></a></div><div class="callout info"><div class="callout-icon">💡</div><div class="callout-body"><div class="callout-title">Recommended Learning Paths</div><div class="callout-text"><strong>New to Intune?</strong> <a href='backend-architecture.html'>Backend Architecture</a> → <a href='mdm-vs-byod.html'>MDM vs BYOD</a> → <a href='policy-management.html'>Policy Management</a><br><strong>Security-focused?</strong> <a href='endpoint-security.html'>Endpoint Security</a> → <a href='azure-ad.html'>Azure AD & CA</a> → <a href='certificates-scep-pkcs.html'>Certificates</a><br><strong>Evaluating Intune?</strong> <a href='mdm-comparison.html'>MDM Comparison</a> → <a href='reporting-issues.html'>Reporting Issues</a><br><strong>Automating?</strong> <a href='windows-autopilot.html'>Autopilot</a> → <a href='graph-api-automation.html'>Graph API</a><br><strong>Stay current:</strong> <a href='whats-new.html'>🆕 What's New</a> — live feed from Microsoft Learn, auto-refreshes on every visit<br><strong>Something broken?</strong> <a href='troubleshooting.html'>🔧 Open the Troubleshooting Wizard</a></div></div></div></section>
-    <footer class="page-footer"><span></span><span class="foot-center">Intune Deep Dive · 15 Modules</span><a href="backend-architecture.html" class="foot-nav foot-next"><span class="foot-nav-arrow">→</span><div><span class="foot-nav-label">Next</span><span class="foot-nav-title">🏗️ Backend Architecture</span></div></a></footer>
+    <div class="page-header"><div class="page-header-eyebrow">🆕 Live Updates</div><h1 class="page-header-title">What's New in Microsoft Intune</h1><p class="page-header-desc">Live feed of Microsoft Intune feature releases, settings catalog additions, and service updates — fetched directly from Microsoft Learn each time you visit this page. Content updates automatically whenever Microsoft publishes new releases.</p><div class="page-header-meta"><div class="meta-item"><span class="meta-label">Source</span><span class="meta-value">learn.microsoft.com/en-us/intune</span></div><div class="meta-item"><span class="meta-label">Refresh</span><span class="meta-value">Every page load</span></div><div class="meta-item"><span class="meta-label">Cadence</span><span class="meta-value">Microsoft releases monthly service updates</span></div></div></div><section class="doc-section" id="s-live"><div class="doc-section-header"><span class="doc-section-number">01</span><div class="doc-section-titles"><div class="doc-section-tag">Live Feed</div><div class="doc-section-title">Latest Intune Updates — Live from Microsoft</div></div></div><p class="doc-section-desc">Content below is fetched live from Microsoft Learn on every page load. No manual updates needed — whenever Microsoft publishes new release notes, they appear here automatically.</p><div class="wn-status">
+  <span class="wn-dot" id="wn-dot"></span>
+  <span id="wn-status-text">Fetching live content from Microsoft Learn…</span>
+  <button id="wn-refresh" style="margin-left:auto;background:none;border:1px solid #21262d;border-radius:6px;padding:4px 12px;font-size:11px;color:#6e7681;cursor:pointer;transition:all .15s;font-family:inherit" onmouseover="this.style.borderColor='var(--accent-border)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='#21262d';this.style.color='#6e7681'">↺ Refresh</button>
+</div>
+<div class="wn-content" id="wn-content"></div></section><section class="doc-section" id="s-howit"><div class="doc-section-header"><span class="doc-section-number">02</span><div class="doc-section-titles"><div class="doc-section-tag">How It Works</div><div class="doc-section-title">Technical Implementation</div></div></div><p class="doc-section-desc">The page uses a CORS proxy to fetch the Microsoft Learn documentation page on every load, extracts the article content, and renders it in our design system styling.</p><div class="card-grid cg-auto"><div class="doc-card"><div class="doc-card-icon">🌐</div><div class="doc-card-title">CORS Proxy (allorigins.win)</div><div class="doc-card-text">Microsoft Learn does not set CORS headers allowing browser-side fetching. A lightweight open-source CORS proxy (allorigins.win) is used to relay the request. The proxy returns the raw HTML of the page.</div></div><div class="doc-card"><div class="doc-card-icon">🔍</div><div class="doc-card-title">Content Extraction</div><div class="doc-card-text">The JavaScript extracts the <code>[data-bi-name='content']</code> or <code>#main</code> element from the returned HTML — the article body. Navigation, feedback forms, and metadata are stripped before rendering.</div></div><div class="doc-card"><div class="doc-card-icon">🎨</div><div class="doc-card-title">Design Restyling</div><div class="doc-card-text">The extracted content is rendered inside a <code>.ms-content</code> CSS class that maps Microsoft Learn's heading hierarchy (h2/h3/h4), lists, code blocks, tables, and callouts into our dark design system.</div></div><div class="doc-card"><div class="doc-card-icon">🔗</div><div class="doc-card-title">Link Rewriting</div><div class="doc-card-text">Relative links in the Microsoft Learn content are rewritten to absolute URLs pointing back to <code>learn.microsoft.com</code> and open in a new tab, so clicking a link doesn't navigate away from this site.</div></div></div><div class="callout warn"><div class="callout-icon">⚠️</div><div class="callout-body"><div class="callout-title">Limitation — CORS Proxy Availability</div><div class="callout-text">The allorigins.win proxy is a free open-source service. If it is temporarily unavailable, the page will show a fallback error with a direct link to Microsoft Learn. For a production deployment, consider self-hosting a CORS proxy on your own Azure Functions or Cloudflare Worker for full reliability control.</div></div></div><div class="callout info"><div class="callout-icon">📡</div><div class="callout-body"><div class="callout-title">Release Cadence</div><div class="callout-text">Microsoft releases Intune updates approximately monthly (week 1–2 of each month). Each release includes: Settings Catalog additions, new compliance policy settings, app management improvements, and platform-specific features. Monthly updates roll out over 4 days: APAC → EMEA → North America → Government Cloud.</div></div></div></section>
+    <footer class="page-footer"><a href="mdm-comparison.html" class="foot-nav"><span class="foot-nav-arrow">←</span><div><span class="foot-nav-label">Previous</span><span class="foot-nav-title">⚔️ MDM Comparison</span></div></a><span class="foot-center">Intune Deep Dive · 15 Modules</span><a href="troubleshooting.html" class="foot-nav foot-next"><span class="foot-nav-arrow">→</span><div><span class="foot-nav-label">Next</span><span class="foot-nav-title">🔧 Troubleshooter</span></div></a></footer>
   </div>
-  <aside class="toc-panel"><div class="toc-panel-title">On This Page</div><a href="#modules">All Modules</a></aside>
+  <aside class="toc-panel"><div class="toc-panel-title">On This Page</div><a href="#s-live">Live Feed</a><a href="#s-howit">How It Works</a></aside>
 </div>
 <script>
 /* Sidebar toggle */
@@ -617,6 +663,93 @@ if (tocLinks.length) {
   }, { rootMargin: '-10% 0px -80% 0px' });
   document.querySelectorAll('.doc-section[id]').forEach(s => io.observe(s));
 }
+
+// ── What's New live fetch from Microsoft Learn ──────────────────────────────
+const SOURCE_URL = 'https://learn.microsoft.com/en-us/intune/intune-service/fundamentals/whats-new';
+const PROXY      = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(SOURCE_URL);
+
+async function loadWhatsNew() {
+  const statusDot  = document.getElementById('wn-dot');
+  const statusText = document.getElementById('wn-status-text');
+  const container  = document.getElementById('wn-content');
+
+  container.innerHTML = `<div class="wn-loading"><div class="wn-spinner"></div><span>Fetching latest updates from Microsoft Learn…</span></div>`;
+
+  try {
+    const res  = await fetch(PROXY);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const html = await res.text();
+
+    // Parse the returned HTML
+    const parser = new DOMParser();
+    const doc    = parser.parseFromString(html, 'text/html');
+
+    // Extract the main article content
+    const article = doc.querySelector('[data-bi-name="content"]')
+                 || doc.querySelector('main article')
+                 || doc.querySelector('#main')
+                 || doc.querySelector('.content');
+
+    if (!article) throw new Error('Content node not found in page');
+
+    // Remove unwanted elements (navigation, feedback, etc.)
+    ['nav', '.feedback-section', '.action-container', '.book-mark-section',
+     '.article-header', '[data-bi-name="feedback"]', '.contribute-to-docs',
+     '.metadata', 'aside', '.alert.is-warning', 'script', 'style'
+    ].forEach(sel => article.querySelectorAll(sel).forEach(el => el.remove()));
+
+    // Fix relative links to point to Microsoft Learn
+    article.querySelectorAll('a[href]').forEach(a => {
+      const href = a.getAttribute('href');
+      if (href && !href.startsWith('http') && !href.startsWith('#')) {
+        a.setAttribute('href', 'https://learn.microsoft.com' + (href.startsWith('/') ? '' : '/en-us/') + href);
+        a.setAttribute('target', '_blank');
+        a.setAttribute('rel', 'noopener');
+      }
+    });
+
+    // Remove images (avoid mixed content / broken img refs)
+    article.querySelectorAll('img').forEach(i => i.remove());
+
+    // Build the final HTML
+    const rendered = article.innerHTML;
+    const now      = new Date().toLocaleString('en-GB', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' });
+
+    container.innerHTML = `
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:16px">
+        <span class="wn-week-badge">Live content from Microsoft Learn</span>
+        <span class="wn-last-updated">Last fetched: ${now}</span>
+      </div>
+      <div class="ms-content">${rendered}</div>
+      <div style="margin-top:24px;padding:14px 16px;background:#161b22;border:1px solid #21262d;border-radius:8px;font-size:11px;color:#484f58">
+        Content sourced live from
+        <a href="${SOURCE_URL}" target="_blank" rel="noopener" style="color:var(--accent)">Microsoft Learn — What's new in Microsoft Intune</a>.
+        Refreshes each time this page is loaded. For the authoritative source, visit Microsoft Learn directly.
+      </div>`;
+
+    statusDot.classList.add('live');
+    statusText.textContent = 'Live content — last fetched ' + now;
+
+  } catch (err) {
+    container.innerHTML = `
+      <div class="wn-error">
+        <div style="font-size:24px;margin-bottom:10px">⚠️</div>
+        <div style="font-weight:700;color:#e6edf3;margin-bottom:8px">Could not fetch live content</div>
+        <div style="margin-bottom:14px">This may be due to network restrictions or a temporary API issue.<br>View the source directly on Microsoft Learn:</div>
+        <a href="${SOURCE_URL}" target="_blank" rel="noopener"
+           style="display:inline-flex;align-items:center;gap:6px;padding:8px 16px;background:var(--accent-bg);border:1px solid var(--accent-border);border-radius:6px;color:var(--accent);font-weight:600;font-size:12px;text-decoration:none">
+          Open on Microsoft Learn ↗
+        </a>
+        <div style="margin-top:12px;font-size:11px;opacity:.6">Error: ${err.message}</div>
+      </div>`;
+    statusText.textContent = 'Failed to fetch — click to open on Microsoft Learn';
+  }
+}
+
+// Load on page ready
+document.addEventListener('DOMContentLoaded', loadWhatsNew);
+// Refresh button
+document.getElementById('wn-refresh')?.addEventListener('click', loadWhatsNew);
 </script>
 </body>
 </html>
